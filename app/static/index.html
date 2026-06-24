@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f1117">
+    <link rel="manifest" href="/static/manifest.json">
+    <title>REAI - Real Estate AI Assistant</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260611b">
+</head>
+<body>
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <button class="new-chat-btn" id="new-chat-btn">+ New Chat</button>
+        <div class="sidebar-list" id="sidebar-list"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="header" id="header">
+        <button class="menu-btn" id="menu-btn">&#9776;</button>
+        <div class="logo">REAI Real Estate Assistant</div>
+        <div class="header-right">
+            <div class="status-badge" id="status-badge">
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">Disconnected</span>
+            </div>
+            <button class="connect-btn" id="connect-btn">Connect Google</button>
+            <button class="meta-connect-btn" id="meta-connect-btn">Connect Meta</button>
+            <button class="connect-btn lofty-connect-btn" id="lofty-connect-btn" style="background:#10b981">Connect Lofty</button>
+        </div>
+    </header>
+
+    <!-- Chat Container -->
+    <div class="chat-container" id="chat-container">
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcome-screen">
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-unread">--</div>
+                    <div class="stat-label">Unread Emails</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-today">--</div>
+                    <div class="stat-label">Today's Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-tomorrow">--</div>
+                    <div class="stat-label">Tomorrow</div>
+                </div>
+            </div>
+            <h2>Welcome to REAI</h2>
+            <div class="suggestions-grid">
+                <button class="suggestion-card" onclick="useSuggestion('Give me my daily brief')">Daily Brief</button>
+                <button class="suggestion-card" onclick="useSuggestion('Check my recent emails')">Check Emails</button>
+                <button class="suggestion-card" onclick="useSuggestion('Show my schedule for today')">View Schedule</button>
+                <button class="suggestion-card" onclick="useSuggestion('Show my CRM leads')">CRM Leads</button>
+                <button class="suggestion-card" onclick="useSuggestion('Search MLS listings')">Search MLS</button>
+                <button class="suggestion-card" onclick="useSuggestion('Generate a CMA report')">Generate CMA</button>
+                <button class="suggestion-card" onclick="useSuggestion('Create a social media post')">Social Post</button>
+                <button class="suggestion-card" onclick="useSuggestion('Check my social media DMs')">Social DMs</button>
+                <button class="suggestion-card" onclick="useSuggestion('Draft an email')">Draft Email</button>
+                <button class="suggestion-card" onclick="useSuggestion('Find my available time slots')">Find Availability</button>
+            </div>
+        </div>
+
+        <!-- Messages will be appended here -->
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area" id="input-area">
+        <div class="input-wrapper">
+            <textarea id="message-input" placeholder="Ask REAI anything..." rows="1"></textarea>
+            <button class="send-btn" id="send-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Google Auth Modal -->
+    <div class="modal-overlay" id="google-auth-modal">
+        <div class="modal">
+            <h3>Connect Google Account</h3>
+            <div class="auth-step" id="google-step-1">
+                <p>Click below to authorize REAI to access your Gmail, Calendar, and Drive.</p>
+                <button class="modal-btn" id="google-authorize-btn">Authorize with Google</button>
+            </div>
+            <div class="auth-step" id="google-step-2" style="display:none;">
+                <p>Paste the redirect URL you received after authorizing:</p>
+                <input type="text" class="auth-input" id="google-auth-code" placeholder="Paste the redirect URL here...">
+                <button class="modal-btn" id="google-submit-btn">Submit</button>
+            </div>
+            <button class="modal-close" id="google-modal-close">&times;</button>
+        </div>
+    </div>
+
+    <!-- Meta Auth Modal -->
+    <div class="modal-overlay" id="meta-auth-modal">
+        <div class="modal meta-modal">
+            <h3>Connect Meta Account</h3>
+            <div class="auth-step" id="meta-step-1">
+                <p>Click below to authorize REAI to access your Facebook and Instagram accounts.</p>
+                <button class="modal-btn meta-btn" id="meta-authorize-btn">Authorize with Meta</button>
+            </div>
+            <div class="auth-step" id="meta-step-2" style="display:none;">
+                <p>Paste the redirect URL you received after authorizing:</p>
+                <input type="text" class="auth-input" id="meta-auth-code" placeholder="Paste the redirect URL here...">
+                <button class="modal-btn meta-btn" id="meta-submit-btn">Submit</button>
+            </div>
+            <button class="modal-close" id="meta-modal-close">&times;</button>
+        </div>
+    </div>
+
+    <!-- Lofty Auth Modal -->
+    <div class="modal-overlay" id="lofty-auth-modal">
+        <div class="modal">
+            <h3>Connect Lofty CRM</h3>
+            <div class="auth-step" id="lofty-step-1">
+                <p>A Lofty login page will open. Sign in and authorize REAI to access your CRM data.</p>
+            </div>
+            <div class="auth-step" id="lofty-step-2">
+                <p>After authorizing, paste the redirect URL from your browser below:</p>
+                <input type="text" class="auth-input" id="lofty-auth-code" placeholder="Paste the redirect URL here...">
+                <button class="modal-btn" id="lofty-submit-btn" style="background:#10b981">Connect</button>
+            </div>
+            <div class="auth-error" id="lofty-auth-error" style="display:none"></div>
+            <button class="modal-close" id="lofty-modal-close">&times;</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=20260611b"></script>
+</body>
+</html>

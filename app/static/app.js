@@ -1,0 +1,668 @@
+// ===== State =====
+let conversationId = null;
+let isStreaming = false;
+
+// ===== DOM References =====
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+const sidebarList = document.getElementById('sidebar-list');
+const menuBtn = document.getElementById('menu-btn');
+const newChatBtn = document.getElementById('new-chat-btn');
+const chatContainer = document.getElementById('chat-container');
+const welcomeScreen = document.getElementById('welcome-screen');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const connectBtn = document.getElementById('connect-btn');
+const metaConnectBtn = document.getElementById('meta-connect-btn');
+const statUnread = document.getElementById('stat-unread');
+const statToday = document.getElementById('stat-today');
+const statTomorrow = document.getElementById('stat-tomorrow');
+
+// Google auth modal
+const googleAuthModal = document.getElementById('google-auth-modal');
+const googleStep1 = document.getElementById('google-step-1');
+const googleStep2 = document.getElementById('google-step-2');
+const googleAuthorizeBtn = document.getElementById('google-authorize-btn');
+const googleAuthCode = document.getElementById('google-auth-code');
+const googleSubmitBtn = document.getElementById('google-submit-btn');
+const googleModalClose = document.getElementById('google-modal-close');
+
+// Meta auth modal
+const metaAuthModal = document.getElementById('meta-auth-modal');
+const metaStep1 = document.getElementById('meta-step-1');
+const metaStep2 = document.getElementById('meta-step-2');
+const metaAuthorizeBtn = document.getElementById('meta-authorize-btn');
+const metaAuthCode = document.getElementById('meta-auth-code');
+const metaSubmitBtn = document.getElementById('meta-submit-btn');
+const metaModalClose = document.getElementById('meta-modal-close');
+
+// Lofty auth modal
+const loftyConnectBtn = document.getElementById('lofty-connect-btn');
+const loftyAuthModal = document.getElementById('lofty-auth-modal');
+const loftyAuthCode = document.getElementById('lofty-auth-code');
+const loftySubmitBtn = document.getElementById('lofty-submit-btn');
+const loftyModalClose = document.getElementById('lofty-modal-close');
+const loftyAuthError = document.getElementById('lofty-auth-error');
+
+// ===== Tool Names Mapping =====
+const toolNames = {
+    search_emails: 'Searching emails',
+    read_email: 'Reading email',
+    send_email: 'Sending email',
+    list_calendar_events: 'Listing calendar events',
+    create_calendar_event: 'Creating calendar event',
+    find_free_slots: 'Finding free time slots',
+    search_drive_files: 'Searching Drive files',
+    read_drive_file: 'Reading Drive file',
+    get_crm_leads: 'Getting CRM leads',
+    get_crm_lead_details: 'Getting lead details',
+    search_crm_leads: 'Searching CRM leads',
+    get_lead_activities: 'Getting lead activities',
+    update_crm_lead: 'Updating CRM lead',
+    add_lead_note: 'Adding lead note',
+    get_pipeline_summary: 'Getting pipeline summary',
+    search_listings: 'Searching MLS listings',
+    generate_cma: 'Generating CMA report',
+    get_listing_details: 'Getting listing details',
+    generate_daily_brief: 'Generating daily brief',
+    post_to_facebook: 'Posting to Facebook',
+    post_to_instagram: 'Posting to Instagram',
+    get_facebook_posts: 'Getting Facebook posts',
+    get_facebook_messages: 'Getting Facebook messages',
+    read_facebook_conversation: 'Reading Facebook conversation',
+    reply_facebook_message: 'Replying on Facebook',
+    get_instagram_dms: 'Getting Instagram DMs',
+    reply_instagram_dm: 'Replying on Instagram'
+};
+
+// ===== Utility =====
+function isMobile() {
+    return window.innerWidth <= 768;
+}
+
+// ===== Sidebar Toggle =====
+function toggleSidebar() {
+    if (isMobile()) {
+        sidebar.classList.toggle('visible');
+        sidebarOverlay.classList.toggle('visible');
+    }
+}
+
+function closeSidebar() {
+    if (isMobile()) {
+        sidebar.classList.remove('visible');
+        sidebarOverlay.classList.remove('visible');
+    }
+}
+
+menuBtn.addEventListener('click', toggleSidebar);
+sidebarOverlay.addEventListener('click', closeSidebar);
+
+// ===== New Chat =====
+newChatBtn.addEventListener('click', function () {
+    conversationId = null;
+    chatContainer.innerHTML = '';
+    chatContainer.appendChild(welcomeScreen);
+    welcomeScreen.style.display = '';
+    document.querySelectorAll('.sidebar-item').forEach(function (el) {
+        el.classList.remove('active');
+    });
+    closeSidebar();
+});
+
+// ===== Load Conversations =====
+function loadConversations() {
+    fetch('/api/conversations')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            sidebarList.innerHTML = '';
+            (data.conversations || []).forEach(function (conv) {
+                var item = document.createElement('div');
+                item.className = 'sidebar-item' + (conv.id === conversationId ? ' active' : '');
+                item.innerHTML =
+                    '<span class="sidebar-item-title">' + escapeHtml(conv.title || 'Untitled') + '</span>' +
+                    '<button class="sidebar-item-delete" title="Delete">&times;</button>';
+                item.querySelector('.sidebar-item-title').addEventListener('click', function () {
+                    loadConversation(conv.id);
+                    closeSidebar();
+                });
+                item.querySelector('.sidebar-item-delete').addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    deleteConversation(conv.id);
+                });
+                sidebarList.appendChild(item);
+            });
+        })
+        .catch(function () {});
+}
+
+// ===== Load Conversation =====
+function loadConversation(id) {
+    conversationId = id;
+    fetch('/api/conversations/' + id + '/messages')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            welcomeScreen.style.display = 'none';
+            // Remove all messages but keep welcome screen
+            var messages = chatContainer.querySelectorAll('.message, .tool-indicator');
+            messages.forEach(function (el) { el.remove(); });
+            (data.messages || []).forEach(function (msg) {
+                addMessage(msg.role, msg.content);
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Update active sidebar item
+            document.querySelectorAll('.sidebar-item').forEach(function (el) {
+                el.classList.remove('active');
+            });
+            loadConversations();
+        })
+        .catch(function () {});
+}
+
+// ===== Delete Conversation =====
+function deleteConversation(id) {
+    fetch('/api/conversations/' + id, { method: 'DELETE' })
+        .then(function () {
+            if (conversationId === id) {
+                conversationId = null;
+                chatContainer.innerHTML = '';
+                chatContainer.appendChild(welcomeScreen);
+                welcomeScreen.style.display = '';
+            }
+            loadConversations();
+        })
+        .catch(function () {});
+}
+
+// ===== Load Dashboard =====
+function loadDashboard() {
+    fetch('/api/dashboard')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            statUnread.textContent = data.unread_emails !== undefined ? data.unread_emails : '--';
+            statToday.textContent = data.today_events !== undefined ? data.today_events : '--';
+            statTomorrow.textContent = data.tomorrow_events !== undefined ? data.tomorrow_events : '--';
+        })
+        .catch(function () {});
+}
+
+// ===== Auth Status =====
+function checkAuthStatus() {
+    fetch('/api/auth/status')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            // Google
+            if (data.google_connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                connectBtn.textContent = 'Disconnect Google';
+                connectBtn.classList.add('connected');
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+                connectBtn.textContent = 'Connect Google';
+                connectBtn.classList.remove('connected');
+            }
+            // Meta
+            if (data.meta_connected) {
+                metaConnectBtn.textContent = 'Disconnect Meta';
+                metaConnectBtn.classList.add('connected');
+            } else {
+                metaConnectBtn.textContent = 'Connect Meta';
+                metaConnectBtn.classList.remove('connected');
+            }
+            // Lofty
+            if (data.lofty_connected) {
+                loftyConnectBtn.textContent = 'Lofty Connected';
+                loftyConnectBtn.style.background = '#059669';
+                loftyConnectBtn.onclick = disconnectLofty;
+            } else {
+                loftyConnectBtn.textContent = 'Connect Lofty';
+                loftyConnectBtn.style.background = '#10b981';
+                loftyConnectBtn.onclick = startLoftyAuth;
+            }
+        })
+        .catch(function () {});
+}
+
+// ===== Google Auth Flow =====
+connectBtn.addEventListener('click', function () {
+    if (connectBtn.classList.contains('connected')) {
+        disconnectGoogle();
+    } else {
+        googleStep1.style.display = '';
+        googleStep2.style.display = 'none';
+        googleAuthCode.value = '';
+        googleAuthModal.classList.add('visible');
+    }
+});
+
+googleModalClose.addEventListener('click', function () {
+    googleAuthModal.classList.remove('visible');
+});
+
+function startGoogleAuth() {
+    fetch('/api/auth/google')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.auth_url) {
+                window.open(data.auth_url, '_blank');
+                googleStep1.style.display = 'none';
+                googleStep2.style.display = '';
+            }
+        })
+        .catch(function () {});
+}
+
+googleAuthorizeBtn.addEventListener('click', startGoogleAuth);
+
+function submitAuthCode() {
+    var code = googleAuthCode.value.trim();
+    if (!code) return;
+    if (code.indexOf('code=') !== -1) {
+        try {
+            var url = new URL(code.replace('http://localhost', 'http://dummy'));
+            code = url.searchParams.get('code') || code;
+        } catch (e) {}
+    }
+    fetch('/api/auth/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+    })
+        .then(function (r) {
+            if (r.ok) {
+                googleAuthModal.classList.remove('visible');
+                checkAuthStatus();
+                loadDashboard();
+            }
+        })
+        .catch(function () {});
+}
+
+googleSubmitBtn.addEventListener('click', submitAuthCode);
+
+function disconnectGoogle() {
+    fetch('/api/auth/disconnect', { method: 'POST' })
+        .then(function () {
+            checkAuthStatus();
+        })
+        .catch(function () {});
+}
+
+// ===== Meta Auth Flow =====
+metaConnectBtn.addEventListener('click', function () {
+    if (metaConnectBtn.classList.contains('connected')) {
+        disconnectMeta();
+    } else {
+        metaStep1.style.display = '';
+        metaStep2.style.display = 'none';
+        metaAuthCode.value = '';
+        metaAuthModal.classList.add('visible');
+    }
+});
+
+metaModalClose.addEventListener('click', function () {
+    metaAuthModal.classList.remove('visible');
+});
+
+function startMetaAuth() {
+    fetch('/api/auth/meta/start', { method: 'POST' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.auth_url) {
+                window.open(data.auth_url, '_blank');
+                metaStep1.style.display = 'none';
+                metaStep2.style.display = '';
+            }
+        })
+        .catch(function () {});
+}
+
+metaAuthorizeBtn.addEventListener('click', startMetaAuth);
+
+function submitMetaCode() {
+    var redirectUrl = metaAuthCode.value.trim();
+    if (!redirectUrl) return;
+    // Extract code from the redirect URL
+    var code = redirectUrl;
+    try {
+        var urlObj = new URL(redirectUrl);
+        var codeParam = urlObj.searchParams.get('code');
+        if (codeParam) code = codeParam;
+    } catch (e) {
+        // If not a valid URL, use as-is (might be just the code)
+    }
+    fetch('/api/auth/meta/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            metaAuthModal.classList.remove('visible');
+            checkAuthStatus();
+        })
+        .catch(function () {});
+}
+
+metaSubmitBtn.addEventListener('click', submitMetaCode);
+
+function disconnectMeta() {
+    fetch('/api/auth/meta/disconnect', { method: 'POST' })
+        .then(function () {
+            checkAuthStatus();
+        })
+        .catch(function () {});
+}
+
+// ===== Lofty Auth Flow =====
+function startLoftyAuth() {
+    fetch('/api/auth/lofty')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.auth_url) {
+                window.open(data.auth_url, '_blank');
+                loftyAuthError.style.display = 'none';
+                loftyAuthCode.value = '';
+                loftyAuthModal.classList.add('visible');
+            }
+        });
+}
+
+loftyModalClose.addEventListener('click', function () {
+    loftyAuthModal.classList.remove('visible');
+});
+
+loftySubmitBtn.addEventListener('click', submitLoftyCode);
+loftyAuthCode.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitLoftyCode(); });
+
+function submitLoftyCode() {
+    var code = loftyAuthCode.value.trim();
+    if (!code) return;
+    if (code.indexOf('code=') !== -1) {
+        try {
+            var url = new URL(code.replace('http://localhost', 'http://dummy'));
+            code = url.searchParams.get('code') || code;
+        } catch (e) {}
+    }
+    loftySubmitBtn.disabled = true;
+    loftySubmitBtn.textContent = 'Connecting...';
+    loftyAuthError.style.display = 'none';
+    fetch('/api/auth/lofty/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+    })
+        .then(function (r) {
+            if (r.ok) {
+                loftyAuthModal.classList.remove('visible');
+                checkAuthStatus();
+            } else {
+                loftyAuthError.textContent = 'Connection failed. Please try again with a fresh code.';
+                loftyAuthError.style.display = 'block';
+            }
+            loftySubmitBtn.disabled = false;
+            loftySubmitBtn.textContent = 'Connect';
+        })
+        .catch(function () {
+            loftyAuthError.textContent = 'Something went wrong.';
+            loftyAuthError.style.display = 'block';
+            loftySubmitBtn.disabled = false;
+            loftySubmitBtn.textContent = 'Connect';
+        });
+}
+
+function disconnectLofty() {
+    fetch('/api/auth/lofty/disconnect', { method: 'POST' })
+        .then(function () { checkAuthStatus(); });
+}
+
+// ===== HTML Escaping =====
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+}
+
+// ===== Add Message =====
+function addMessage(role, content) {
+    welcomeScreen.style.display = 'none';
+
+    var msgDiv = document.createElement('div');
+    msgDiv.className = 'message ' + role;
+
+    var avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = role === 'user' ? 'U' : 'AI';
+
+    var contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.innerHTML = formatMarkdown(content);
+
+    msgDiv.appendChild(avatar);
+    msgDiv.appendChild(contentDiv);
+    chatContainer.appendChild(msgDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    return contentDiv;
+}
+
+// ===== Tool Indicator =====
+function addToolIndicator(toolName, detail) {
+    var div = document.createElement('div');
+    div.className = 'tool-indicator';
+
+    var displayName = toolNames[toolName] || toolName;
+    var detailHtml = detail ? '<span class="tool-detail">' + escapeHtml(detail) + '</span>' : '';
+
+    div.innerHTML =
+        '<div class="spinner"></div>' +
+        '<span class="tool-name">' + escapeHtml(displayName) + '</span>' +
+        detailHtml;
+
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    return div;
+}
+
+// ===== Mark Tool Done =====
+function markToolDone(indicator) {
+    if (!indicator) return;
+    indicator.classList.add('done');
+    var spinner = indicator.querySelector('.spinner');
+    if (spinner) {
+        spinner.outerHTML = '<span class="checkmark">&#10003;</span>';
+    }
+}
+
+// ===== Format Markdown =====
+function formatMarkdown(text) {
+    if (!text) return '';
+
+    // HTML escape first
+    var html = escapeHtml(text);
+
+    // Code blocks
+    html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, function (match, lang, code) {
+        return '<pre><code>' + code.trim() + '</code></pre>';
+    });
+
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Bold
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+    // Markdown links [text](url) - handle possible line breaks between ] and (
+    html = html.replace(/\[([^\]]+)\]\s*\n?\s*\(([^)]+)\)/g, function (match, linkText, url) {
+        var cleanUrl = url.replace(/&amp;/g, '&');
+        return '<a href="' + cleanUrl + '" target="_blank" rel="noopener">' + linkText + '</a>';
+    });
+
+    // Raw URLs (not already in href)
+    html = html.replace(/(^|[^"=])(https?:\/\/[^\s<]+)/g, function (match, prefix, url) {
+        var cleanUrl = url.replace(/&amp;/g, '&');
+        return prefix + '<a href="' + cleanUrl + '" target="_blank" rel="noopener">' + url + '</a>';
+    });
+
+    // Unordered lists
+    html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Ordered lists
+    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+    // Paragraphs: split by double newlines
+    var parts = html.split(/\n\n+/);
+    html = parts.map(function (part) {
+        part = part.trim();
+        if (!part) return '';
+        if (part.startsWith('<pre>') || part.startsWith('<ul>') || part.startsWith('<ol>') || part.startsWith('<li>')) {
+            return part;
+        }
+        return '<p>' + part + '</p>';
+    }).join('');
+
+    // Single line breaks within paragraphs
+    html = html.replace(/([^>])\n([^<])/g, '$1<br>$2');
+
+    return html;
+}
+
+// ===== Send Message =====
+function sendMessage() {
+    var text = messageInput.value.trim();
+    if (!text || isStreaming) return;
+
+    isStreaming = true;
+    sendBtn.disabled = true;
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+
+    addMessage('user', text);
+
+    var currentToolIndicator = null;
+    var assistantContentDiv = null;
+    var assistantText = '';
+
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            message: text,
+            conversation_id: conversationId
+        })
+    }).then(function (response) {
+        if (!response.ok) {
+            throw new Error('Server returned ' + response.status);
+        }
+        if (!response.body) {
+            throw new Error('No response body');
+        }
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+
+        function processChunk(result) {
+            if (result.done) {
+                if (!assistantContentDiv && !currentToolIndicator) {
+                    addMessage('assistant', 'No response received. Please try again.');
+                }
+                isStreaming = false;
+                sendBtn.disabled = false;
+                loadConversations();
+                return;
+            }
+
+            buffer += decoder.decode(result.value, { stream: true });
+            var lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            lines.forEach(function (line) {
+                if (!line.startsWith('data: ')) return;
+                var data;
+                try {
+                    data = JSON.parse(line.substring(6));
+                } catch (e) {
+                    return;
+                }
+
+                switch (data.type) {
+                    case 'conversation_id':
+                        conversationId = data.id;
+                        break;
+
+                    case 'tool_start':
+                        currentToolIndicator = addToolIndicator(data.tool, data.detail || '');
+                        break;
+
+                    case 'tool_done':
+                        markToolDone(currentToolIndicator);
+                        currentToolIndicator = null;
+                        break;
+
+                    case 'text':
+                        if (!assistantContentDiv) {
+                            assistantContentDiv = addMessage('assistant', '');
+                            assistantText = '';
+                        }
+                        assistantText += data.content;
+                        assistantContentDiv.innerHTML = formatMarkdown(assistantText);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                        break;
+
+                    case 'error':
+                        addMessage('assistant', 'Error: ' + (data.content || 'Something went wrong'));
+                        break;
+
+                    case 'done':
+                        isStreaming = false;
+                        sendBtn.disabled = false;
+                        loadConversations();
+                        break;
+                }
+            });
+
+            return reader.read().then(processChunk);
+        }
+
+        return reader.read().then(processChunk);
+    }).catch(function (err) {
+        isStreaming = false;
+        sendBtn.disabled = false;
+        addMessage('assistant', 'Connection error - please refresh the page and try again.');
+    });
+}
+
+sendBtn.addEventListener('click', sendMessage);
+
+messageInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// ===== Suggestion Cards =====
+function useSuggestion(text) {
+    messageInput.value = text;
+    sendMessage();
+}
+
+// ===== Auto-resize Textarea =====
+messageInput.addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// ===== Initialization =====
+checkAuthStatus();
+loadConversations();
+loadDashboard();
+
+// Periodic refresh
+setInterval(checkAuthStatus, 30000);
+setInterval(loadDashboard, 60000);
