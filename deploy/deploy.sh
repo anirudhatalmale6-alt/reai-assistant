@@ -13,7 +13,7 @@
 set -euo pipefail
 
 DOMAIN="${1:-}"
-REPO="https://github.com/anirudhatalmale6-alt/reai-real-estate-assistant.git"
+REPO="https://github.com/anirudhatalmale6-alt/reai-assistant.git"
 APP_DIR="/opt/reai"
 
 echo "==> Installing system packages"
