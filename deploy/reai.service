@@ -1,0 +1,19 @@
+[Unit]
+Description=REAI - Real Estate AI Assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=reai
+WorkingDirectory=/opt/reai
+EnvironmentFile=/opt/reai/.env
+ExecStart=/opt/reai/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8081
+Restart=always
+RestartSec=3
+# Harden a little
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

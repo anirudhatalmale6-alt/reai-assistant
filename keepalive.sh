@@ -22,17 +22,32 @@ start_server() {
 }
 
 restart_tunnel() {
-    OLD_PID=$(cat "$LOG_DIR/reai_cloudflared.pid" 2>/dev/null)
-    [ -n "$OLD_PID" ] && kill "$OLD_PID" 2>/dev/null
-    sleep 2
+    # Kill ALL cloudflared procs bound to THIS project's config (orphans included),
+    # never touching other projects' tunnels. Orphan stacking was the recurring bug:
+    # tunnel.json drifted to a dead URL while a stray process served the live one.
+    pkill -f "cloudflared.*${PROJECT_DIR}/cloudflared.yml" 2>/dev/null
+    sleep 3
+    # Truncate log so the URL we grep is always THIS run's URL, never a stale tail.
+    : > "$LOG_DIR/reai_cloudflared.log"
     cloudflared tunnel --config "$PROJECT_DIR/cloudflared.yml" --no-autoupdate > "$LOG_DIR/reai_cloudflared.log" 2>&1 &
     echo $! > "$LOG_DIR/reai_cloudflared.pid"
-    sleep 8
+    sleep 10
     NEW_URL=$(grep -oP 'https://[a-z0-9-]+\.trycloudflare\.com' "$LOG_DIR/reai_cloudflared.log" | tail -1)
     if [ -n "$NEW_URL" ]; then
+        # Verify the new URL actually serves before publishing it to the portal.
+        VERIFY=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$NEW_URL/api/health" 2>/dev/null)
+        if [ "$VERIFY" != "200" ]; then
+            echo "[$(date)] WARN: New tunnel $NEW_URL not healthy yet (status $VERIFY); publishing anyway"
+        fi
         echo "{\"url\": \"$NEW_URL\", \"updated\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > "$PORTAL_DIR/tunnel.json"
-        cd "$PORTAL_DIR" && git add tunnel.json && git commit -m "Auto-update tunnel URL" && git push origin main 2>/dev/null
-        echo "[$(date)] Tunnel restarted. New URL: $NEW_URL"
+        cd "$PORTAL_DIR" && git pull -q origin main 2>/dev/null
+        git add tunnel.json
+        git -c user.email="anirudhatalmale6-alt@users.noreply.github.com" -c user.name="anirudhatalmale6-alt" commit -m "Auto-update tunnel URL" 2>/dev/null
+        if git push origin main 2>>"$LOG_DIR/reai_keepalive.log"; then
+            echo "[$(date)] Tunnel restarted + portal updated. New URL: $NEW_URL"
+        else
+            echo "[$(date)] ERROR: portal git push FAILED for $NEW_URL"
+        fi
     else
         echo "[$(date)] ERROR: Tunnel restarted but could not extract URL"
     fi
