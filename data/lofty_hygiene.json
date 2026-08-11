@@ -1,0 +1,304 @@
+{
+  "scanned": 8384,
+  "unreachable_no_email_no_phone": 41,
+  "missing_name": 0,
+  "unassigned": 88,
+  "missing_stage": 0,
+  "malformed_emails": {
+    "count": 6,
+    "examples": [
+      {
+        "lead": "Mary Skipton",
+        "email": "skipy26@hotmail.com."
+      },
+      {
+        "lead": "No Name",
+        "email": "(905)\u00a0684-3407@kvleads.com"
+      },
+      {
+        "lead": "No Name",
+        "email": "(905)\u00a0646-8688@kvleads.com"
+      },
+      {
+        "lead": "No Name",
+        "email": "(289)\u00a0362-4141@kvleads.com"
+      },
+      {
+        "lead": "No Name",
+        "email": "(905)\u00a0521-4340@kvleads.com"
+      },
+      {
+        "lead": "No Name",
+        "email": "(289)\u00a0213-0749@kvleads.com"
+      }
+    ]
+  },
+  "typo_domain_emails": {
+    "count": 7,
+    "examples": [
+      {
+        "lead": "Gurshan",
+        "email": "gurshansidhu0808@gmail.con",
+        "leadId": 1148388034970420
+      },
+      {
+        "lead": "David D",
+        "email": "david.delgrosso@hotmai.com",
+        "leadId": 1146750851184295
+      },
+      {
+        "lead": "Isaias Martinez",
+        "email": "darisgaray@ouctlook.com",
+        "leadId": 1146375778934952
+      },
+      {
+        "lead": "Brandon Velelago",
+        "email": "brandonvelelago@gmai.com",
+        "leadId": 1132782410559402
+      },
+      {
+        "lead": "Bola",
+        "email": "oppyeah@iclould.com",
+        "leadId": 1128965405311312
+      },
+      {
+        "lead": "Ron",
+        "email": "m@yaho.com",
+        "leadId": 1127734652275371
+      },
+      {
+        "lead": "Trisha M",
+        "email": "yup@gmail.con",
+        "leadId": 835615072576582
+      }
+    ]
+  },
+  "duplicate_email_addresses": {
+    "count": 1,
+    "extra_records": 1,
+    "examples": [
+      {
+        "email": "tammimontour@gmail.com",
+        "names": [
+          "Tammi Montour",
+          "Tammi Montour"
+        ]
+      }
+    ]
+  },
+  "duplicate_phone_numbers": {
+    "count": 129,
+    "extra_records": 148,
+    "examples": [
+      {
+        "phone": "4163178347",
+        "names": [
+          "Sunita Saniary",
+          "Sunita Saniary"
+        ]
+      },
+      {
+        "phone": "9059292422",
+        "names": [
+          "Alexandra Calandrino",
+          "Alexandra Amanda Calandrino"
+        ]
+      },
+      {
+        "phone": "1234567890",
+        "names": [
+          "Lofty Guide",
+          "Christine L Serafini",
+          "Chime Guide",
+          "Chime Guide",
+          "Sue"
+        ]
+      },
+      {
+        "phone": "9057416543",
+        "names": [
+          "Bob Black",
+          "Bob Black"
+        ]
+      },
+      {
+        "phone": "2897755852",
+        "names": [
+          "Ahmadi Ashkana",
+          "Noorahmad Ahmadi"
+        ]
+      },
+      {
+        "phone": "9055555555",
+        "names": [
+          "Nicole Fioravanti",
+          "Me"
+        ]
+      },
+      {
+        "phone": "9055259140",
+        "names": [
+          "Jenny S/redheadmama77",
+          "Dolly Frid",
+          "Mara Giannotti"
+        ]
+      },
+      {
+        "phone": "9055186104",
+        "names": [
+          "Joe Blow",
+          "Augie Calandrino",
+          "Tony",
+          "Cameron Stafford",
+          "Jade MyClients VA"
+        ]
+      },
+      {
+        "phone": "8072529218",
+        "names": [
+          "Samer",
+          "Samer Qeer"
+        ]
+      },
+      {
+        "phone": "4166025695",
+        "names": [
+          "Rodrigo Correa",
+          "Aline Galdino"
+        ]
+      }
+    ]
+  },
+  "duplicate_names": {
+    "count": 202,
+    "examples": [
+      "laura",
+      "christine",
+      "ana",
+      "maria",
+      "kijiji user i\u2019d like to request a vie",
+      "paula",
+      "tammi montour",
+      "sunita saniary",
+      "stephen",
+      "isabel collings",
+      "patrick",
+      "mom",
+      "paul",
+      "mike",
+      "john"
+    ]
+  },
+  "junk_import_tags": {
+    "count": 34,
+    "contacts_tagged": 2278,
+    "tags": [
+      [
+        "iphone import20221005-ecfc1",
+        1376
+      ],
+      [
+        "import20210427-28c36 MassEmail",
+        662
+      ],
+      [
+        "MassEmail",
+        93
+      ],
+      [
+        "doorknocking MassEmail",
+        19
+      ],
+      [
+        "import20210428-633d5 MassEmail",
+        16
+      ],
+      [
+        "MassEmail doorknocking",
+        15
+      ],
+      [
+        "import20210427-28c36",
+        14
+      ],
+      [
+        "yes import20210428-633d5 MassE",
+        12
+      ],
+      [
+        "import20210429-6eba0 MassEmail",
+        11
+      ],
+      [
+        "MLS import20221006-a2801",
+        9
+      ],
+      [
+        "doorckocking MassEmail",
+        7
+      ],
+      [
+        "import20210427-28c36 #PastClie",
+        6
+      ],
+      [
+        "import20210428-633d5",
+        6
+      ],
+      [
+        "Agentlocator MassEmail",
+        4
+      ],
+      [
+        "import20210427-28c36 yes impor",
+        3
+      ]
+    ]
+  },
+  "tags_total": 223,
+  "single_use_tags": 76,
+  "stage_oldest_year": {
+    "Renters No Email": 2025,
+    "Renters with Form": 2024,
+    "New Leads": 2025,
+    "Renters with Email": 2022,
+    "Warm (30-90days)": 2021,
+    "Bad Number": 2026,
+    "Nurture (90+ days)": 2021,
+    "Hot (0-30 days)": 2023,
+    "Under Contract": 2023,
+    "Archived": 2021,
+    "Dead Leads": 2021,
+    "AGENTS": 2025,
+    "Closed": 2026,
+    "Sackville": 2026,
+    "Realtors": 2024,
+    "Investors/Commercial": 2023,
+    "Vendors": 2021,
+    "Past Clients": 2021,
+    "Sphere COI": 2021,
+    "For Exporting": 2021
+  },
+  "stage_newest_year": {
+    "Renters No Email": 2026,
+    "Renters with Form": 2026,
+    "New Leads": 2026,
+    "Renters with Email": 2026,
+    "Warm (30-90days)": 2026,
+    "Bad Number": 2026,
+    "Nurture (90+ days)": 2026,
+    "Hot (0-30 days)": 2026,
+    "Under Contract": 2026,
+    "Archived": 2026,
+    "Dead Leads": 2026,
+    "AGENTS": 2026,
+    "Closed": 2026,
+    "Sackville": 2026,
+    "Realtors": 2026,
+    "Investors/Commercial": 2026,
+    "Vendors": 2026,
+    "Past Clients": 2026,
+    "Sphere COI": 2025,
+    "For Exporting": 2024
+  }
+}

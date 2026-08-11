@@ -8,6 +8,7 @@ Nothing in this module sends email. It selects and counts people, and the
 caller is responsible for the approval step.
 """
 import json
+import re
 import time
 from pathlib import Path
 
@@ -24,15 +25,49 @@ DAILY_SEND_CAP = 5000      # what his Lofty plan allows per day
 # --------------------------------------------------------------------------- #
 # building / loading the local index
 # --------------------------------------------------------------------------- #
+# Placeholder addresses minted by lead vendors (the old kvCORE/KV Leads import
+# left 937 of them). They look valid and are not real inboxes - sending to them
+# means hundreds of hard bounces in one go, which is how a domain gets blacklisted.
+BLOCKED_DOMAINS = {"kvleads.com", "chimeleads.com", "loftyleads.com", "example.com"}
+
+# Near-misses of real providers. These bounce too, so they are excluded until
+# somebody corrects the spelling in the CRM.
+TYPO_DOMAINS = {
+    "gmial.com", "gmai.com", "gmail.co", "gmail.con", "gmail.cm", "gnail.com", "gmaill.com",
+    "hotmial.com", "hotmail.co", "hotmail.con", "hotmai.com", "hotmial.co",
+    "yaho.com", "yahoo.co", "yahooo.com", "yahoo.con", "ymail.co",
+    "ouctlook.com", "outlok.com", "outlook.co", "outloo.com", "otlook.com",
+    "icloud.co", "iclould.com",
+}
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+
+
+def email_problem(address: str) -> str:
+    """Why this address can't be mailed, or "" if it's fine."""
+    value = (address or "").strip()
+    if not value:
+        return "missing"
+    if not EMAIL_RE.match(value):
+        return "malformed"
+    domain = value.rsplit("@", 1)[-1].lower()
+    if domain in BLOCKED_DOMAINS:
+        return "placeholder address from a lead vendor, not a real inbox"
+    if domain in TYPO_DOMAINS:
+        return f"misspelled domain ({domain})"
+    return ""
+
+
 def _is_emailable(lead: dict) -> bool:
     """Whether we may legally and technically email this contact.
 
-    Excluding these is not optional: emailing an unsubscribe breaches CASL and
-    wrecks sender reputation. Enforced here so no caller can forget.
+    Excluding these is not optional: emailing an unsubscribe breaches CASL, and
+    bouncing off fake vendor addresses wrecks sender reputation. Enforced here so
+    no caller can forget.
     """
     if lead.get("cannotEmail") or lead.get("unsubscription"):
         return False
-    return bool(_first_email(lead))
+    return not email_problem(_first_email(lead))
 
 
 def _first_email(lead: dict) -> str:
