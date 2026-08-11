@@ -11,8 +11,8 @@ footer CASL requires.
 import csv
 import hashlib
 import html
-import json
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -43,6 +43,27 @@ def _publish_logo(brand: dict) -> str:
     return f"{PUBLIC_BASE_URL}/static/brand-logo.png"
 
 
+def _inline(text: str) -> str:
+    """Escape for HTML, then honour the light markdown the copy often arrives in.
+
+    Without this, **Open House Saturday** ships to 6,000 inboxes with the
+    asterisks still in it.
+    """
+    out = html.escape(text)
+    out = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", out)
+    out = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<em>\1</em>", out)
+    out = re.sub(r"\[(.+?)\]\((https?://[^\s)]+)\)",
+                 r'<a href="\2" style="color:inherit;">\1</a>', out)
+    return out.replace("*", "")  # anything left over is a stray
+
+
+def _strip_markdown(text: str) -> str:
+    """Plain-text version: drop the markers rather than render them."""
+    out = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    out = re.sub(r"\[(.+?)\]\((https?://[^\s)]+)\)", r"\1 (\2)", out)
+    return out.replace("*", "")
+
+
 def build_email(subject: str, headline: str, paragraphs: list[str],
                 price: str = "", address: str = "", features: list[str] | None = None,
                 cta_text: str = "", cta_url: str = "", image_url: str = "",
@@ -56,7 +77,7 @@ def build_email(subject: str, headline: str, paragraphs: list[str],
 
     esc = html.escape
     body_html = "".join(
-        f'<p style="margin:0 0 16px;font:16px/1.6 Arial,Helvetica,sans-serif;color:#333;">{esc(p)}</p>'
+        f'<p style="margin:0 0 16px;font:16px/1.6 Arial,Helvetica,sans-serif;color:#333;">{_inline(p)}</p>'
         for p in paragraphs if p
     )
 
@@ -116,7 +137,7 @@ def build_email(subject: str, headline: str, paragraphs: list[str],
     <tr><td style="height:4px;background:{accent};"></td></tr>
     {f'<tr><td>{image_html}</td></tr>' if image_html else ''}
     <tr><td style="padding:28px 28px 8px;">
-      <h1 style="margin:0 0 18px;font:700 25px/1.3 Georgia,'Times New Roman',serif;color:{primary};">{esc(headline)}</h1>
+      <h1 style="margin:0 0 18px;font:700 25px/1.3 Georgia,'Times New Roman',serif;color:{primary};">{_inline(headline)}</h1>
       {price_html}
       {body_html}
       {feature_html}
@@ -129,14 +150,14 @@ def build_email(subject: str, headline: str, paragraphs: list[str],
 </td></tr></table>
 </body></html>"""
 
-    text_lines = [headline, ""]
+    text_lines = [_strip_markdown(headline), ""]
     if price:
         text_lines.append(price)
     if address:
         text_lines.append(address)
     if price or address:
         text_lines.append("")
-    text_lines.extend([p for p in paragraphs if p])
+    text_lines.extend([_strip_markdown(p) for p in paragraphs if p])
     if features:
         text_lines += ["", " | ".join(features)]
     if cta_text:
