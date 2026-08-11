@@ -1,12 +1,13 @@
 import json
 from app.tools import (gmail_tools, calendar_tools, drive_tools, lofty_tools, mls_tools,
-                       brief_tools, social_media_tools, content_tools)
+                       brief_tools, social_media_tools, content_tools,
+                       campaign_tools)
 
 _ALL_TOOLS = []
 _ALL_HANDLERS = {}
 
 for module in [gmail_tools, calendar_tools, drive_tools, lofty_tools, mls_tools,
-               brief_tools, social_media_tools, content_tools]:
+               brief_tools, social_media_tools, content_tools, campaign_tools]:
     _ALL_TOOLS.extend(module.TOOLS)
     _ALL_HANDLERS.update(module.HANDLERS)
 
