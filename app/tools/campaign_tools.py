@@ -9,7 +9,7 @@ SEGMENT_FIELDS = {
              "description": "Tags to include, e.g. ['Sphere', 'Past Client']"},
     "cities": {"type": "array", "items": {"type": "string"}, "description": "Cities to include"},
     "owner": {"type": "string",
-              "description": "Only contacts assigned to this agent. Default to the agent's own name so other agents' leads are never marketed to."},
+              "description": "Only contacts assigned to this agent, e.g. 'Agostino Calandrino'. Leave empty to include the whole team - the other agents are on Agostino's team and he earns commission on their closed deals, so team-wide sends are intended. Only set this when he explicitly asks for just his own."},
     "exclude_stages": {"type": "array", "items": {"type": "string"},
                        "description": "Stages to leave out, e.g. ['Dead Leads', 'AGENTS']"},
     "limit": {"type": "integer", "description": "Cap the recipient count (useful for a first test send)"},
