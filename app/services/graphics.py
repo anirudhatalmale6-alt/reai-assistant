@@ -22,9 +22,11 @@ OUT_DIR = BASE_DIR / "static" / "generated"
 UPLOAD_DIR = BASE_DIR.parent / "data" / "uploads"
 BRAND_FILE = BASE_DIR.parent / "data" / "brand.json"
 AI_CACHE = BASE_DIR.parent / "data" / "ai_photos"
+BRAND_DIR = BASE_DIR.parent / "data" / "brand"
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+BRAND_DIR.mkdir(parents=True, exist_ok=True)
 
 # Placeholder identity until the client sends his real logo + brand colours;
 # everything below reads from data/brand.json so it is a one-file change later.
@@ -88,6 +90,26 @@ def font(kind: str, size: int, weight: int = 400) -> ImageFont.FreeTypeFont:
             pass  # static build of Pillow/FreeType - fall back to default weight
         _font_cache[key] = f
     return _font_cache[key]
+
+
+def load_logo(brand: dict) -> Image.Image | None:
+    """The agent's logo as RGBA, or None if not configured / unreadable."""
+    path = (brand.get("logo") or "").strip()
+    if not path:
+        return None
+    candidates = [Path(path), BASE_DIR.parent / path, BRAND_DIR / path]
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                return Image.open(candidate).convert("RGBA")
+        except OSError:
+            pass
+    return None
+
+
+def _logo_at_height(logo: Image.Image, height: int) -> Image.Image:
+    ratio = logo.width / logo.height
+    return logo.resize((max(1, round(height * ratio)), max(1, height)), Image.LANCZOS)
 
 
 def _rgb(value: str) -> tuple:
@@ -189,8 +211,16 @@ def _placeholder(box: tuple, brand: dict) -> Image.Image:
     overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     od = ImageDraw.Draw(overlay)
 
-    # Faint oversized wordmark, centred
-    mark = (brand.get("name") or "").upper()
+    # Prefer the real logo, faded; fall back to a faint text wordmark.
+    logo = load_logo(brand)
+    if logo is not None:
+        art = _logo_at_height(logo, round(min(h * 0.16, (w * 0.62) / (logo.width / logo.height))))
+        faded = art.copy()
+        faded.putalpha(art.getchannel("A").point(lambda a: int(a * 0.30)))
+        overlay.alpha_composite(faded, ((w - art.width) // 2, round(h * 0.24)))
+        mark = ""
+    else:
+        mark = (brand.get("name") or "").upper()
     if mark:
         size = round(96 * scale)
         while size > round(30 * scale):
@@ -280,7 +310,7 @@ def resolve_photo(photo: str, box: tuple, brand: dict, photo_prompt: str = "") -
 # shared blocks
 # --------------------------------------------------------------------------- #
 def _footer(img: Image.Image, brand: dict, height: int, scale: float = 1.0) -> None:
-    """Accent rule + contact strip along the bottom."""
+    """Accent rule + contact strip along the bottom, logo on the right."""
     draw = ImageDraw.Draw(img)
     w, h = img.size
     accent, primary, light = _rgb(brand["accent"]), _rgb(brand["primary"]), _rgb(brand["light"])
@@ -289,20 +319,35 @@ def _footer(img: Image.Image, brand: dict, height: int, scale: float = 1.0) -> N
     draw.rectangle([0, top, w, top + max(3, round(5 * scale))], fill=accent)
 
     pad = round(48 * scale)
+    right = w - pad
+
+    # Logo sits at the right edge; contact details tuck in beside it.
+    logo = load_logo(brand)
+    if logo is not None:
+        # Wide, short wordmark: cap by width too or "REALTY GROUP" turns to mush.
+        ratio = logo.width / logo.height
+        mark = _logo_at_height(logo, min(round(height * 0.52), round((w * 0.32) / ratio)))
+        lx, ly = right - mark.width, top + (height - mark.height) // 2 + round(4 * scale)
+        img.paste(mark, (lx, ly), mark)
+        right = lx - round(36 * scale)
+
     name_f = font("sans", round(30 * scale), 700)
     sub_f = font("body", round(23 * scale), 400)
     draw.text((pad, top + round(28 * scale)), brand["agent"] or brand["name"],
               font=name_f, fill=light)
-    sub_bits = [b for b in [brand.get("title"), brand["name"]] if b]
+    # The logo already carries the brokerage name, so don't repeat it there.
+    sub_bits = [b for b in [brand.get("title")] if b]
+    if logo is None and brand.get("name"):
+        sub_bits.append(brand["name"])
     if sub_bits:
         draw.text((pad, top + round(66 * scale)), "  |  ".join(sub_bits), font=sub_f,
                   fill=tuple(int(c * 0.78) for c in light))
 
     contact = [b for b in [brand.get("phone"), brand.get("website")] if b]
-    y = top + round(30 * scale)
+    fnt = font("body", round(25 * scale), 600)
+    y = top + (height - len(contact) * round(36 * scale)) // 2 + round(4 * scale)
     for bit in contact:
-        fnt = font("body", round(25 * scale), 600)
-        draw.text((w - pad - _text_w(draw, bit, fnt), y), bit, font=fnt, fill=accent)
+        draw.text((right - _text_w(draw, bit, fnt), y), bit, font=fnt, fill=accent)
         y += round(36 * scale)
 
 
