@@ -3,3 +3,7 @@ __pycache__/
 data/reai.db
 data/tokens/*.json
 .env
+app/static/generated/
+data/uploads/
+data/ai_photos/
+data/brand.json
