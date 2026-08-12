@@ -1,0 +1,149 @@
+{
+  "start": {
+    "firstName": "Chime",
+    "lastName": "GuideProbe",
+    "stage": "Nurture (90+ days)",
+    "tags": [],
+    "emails": [
+      "no-reply151192546984521887219@chime.me",
+      "no-reply151192546984539692149@chime.me"
+    ],
+    "phones": [
+      "1234567890"
+    ],
+    "source": "Other"
+  },
+  "trials": [
+    {
+      "label": "tags: object form",
+      "status": 400,
+      "changed": false,
+      "before": [],
+      "after": [],
+      "response": "{\"type\":\"about:blank\",\"title\":\"Bad Request\",\"status\":400,\"detail\":\"Failed to read request\",\"instance\":\"/v1.0/leads/1127720690818985\"}"
+    },
+    {
+      "label": "tags: string form",
+      "status": 200,
+      "changed": true,
+      "before": [],
+      "after": [
+        {
+          "leadId": 1127720690818985,
+          "tagId": 8094374,
+          "createTime": "2026-08-12T01:54:50GMT",
+          "updateTime": "2026-08-12T01:54:50GMT",
+          "tagName": "reai-probe",
+          "creatorUserId": 379193770457578,
+          "visibleType": 1
+        }
+      ],
+      "response": "{\"data\":[{\"id\":0,\"userId\":844594155323252,\"relation\":\"Primary\",\"firstName\":\"Chime\",\"lastName\":\"Guide\",\"subscriptionState\":7,\"birthday\":-9223372036854775808,\"createTime\":null,\"updateTime\":null,\"primary\":true,\"userEmailList\":[{\"userId\":844594155323252,\"familyMemberId\":0,\"email\":\"no-reply151192546984521887219@chime.me\",\"description\":\"\",\"valid\":true,\"teamId\":379193770457578,\"autoId\":67761865,\"primary\""
+    },
+    {
+      "label": "tags: empty list (strip all)",
+      "status": 200,
+      "changed": false,
+      "before": [
+        {
+          "leadId": 1127720690818985,
+          "tagId": 8094374,
+          "createTime": "2026-08-12T01:54:50GMT",
+          "updateTime": "2026-08-12T01:54:50GMT",
+          "tagName": "reai-probe",
+          "creatorUserId": 379193770457578,
+          "visibleType": 1
+        }
+      ],
+      "after": [
+        {
+          "leadId": 1127720690818985,
+          "tagId": 8094374,
+          "createTime": "2026-08-12T01:54:50GMT",
+          "updateTime": "2026-08-12T01:54:50GMT",
+          "tagName": "reai-probe",
+          "creatorUserId": 379193770457578,
+          "visibleType": 1
+        }
+      ],
+      "response": "{\"data\":\"no change\",\"status\":{\"code\":0,\"msg\":\"Success\",\"trace\":\"maufur9kezzia8nw\"}}"
+    },
+    {
+      "label": "stage: Archived",
+      "status": 200,
+      "changed": true,
+      "before": "Nurture (90+ days)",
+      "after": "Archived",
+      "response": "{\"status\":{\"code\":0,\"msg\":\"Success\",\"trace\":\"rri8ycvhw3xxw7sk\"},\"data\":[{\"id\":0,\"userId\":844594155323252,\"relation\":\"Primary\",\"firstName\":\"Chime\",\"lastName\":\"Guide\",\"subscriptionState\":7,\"birthday\":-9223372036854775808,\"createTime\":null,\"updateTime\":null,\"primary\":true,\"userEmailList\":[{\"userId\":844594155323252,\"familyMemberId\":0,\"email\":\"no-reply151192546984521887219@chime.me\",\"description\":\"\",\"v"
+    },
+    {
+      "label": "emails: string form",
+      "status": 200,
+      "changed": false,
+      "before": [
+        "no-reply151192546984521887219@chime.me",
+        "no-reply151192546984539692149@chime.me"
+      ],
+      "after": [
+        "no-reply151192546984521887219@chime.me",
+        "no-reply151192546984539692149@chime.me"
+      ],
+      "response": "{\"data\":[{\"id\":0,\"userId\":844594155323252,\"relation\":\"Primary\",\"firstName\":\"Chime\",\"lastName\":\"Guide\",\"subscriptionState\":7,\"birthday\":-9223372036854775808,\"createTime\":null,\"updateTime\":null,\"primary\":true,\"userEmailList\":[{\"userId\":844594155323252,\"familyMemberId\":0,\"email\":\"reai-probe@example.com\",\"description\":\"\",\"valid\":true,\"teamId\":379193770457578,\"autoId\":198061309,\"primary\":true,\"verified"
+    },
+    {
+      "label": "emails: object form",
+      "status": 400,
+      "changed": false,
+      "before": [
+        "reai-probe@example.com"
+      ],
+      "after": [
+        "reai-probe@example.com"
+      ],
+      "response": "{\"type\":\"about:blank\",\"title\":\"Bad Request\",\"status\":400,\"detail\":\"Failed to read request\",\"instance\":\"/v1.0/leads/1127720690818985\"}"
+    },
+    {
+      "label": "phones: string form",
+      "status": 200,
+      "changed": false,
+      "before": [
+        "1234567890"
+      ],
+      "after": [
+        "1234567890"
+      ],
+      "response": "{\"data\":[{\"id\":0,\"userId\":844594155323252,\"relation\":\"Primary\",\"firstName\":\"Chime\",\"lastName\":\"Guide\",\"subscriptionState\":7,\"birthday\":-9223372036854775808,\"createTime\":null,\"updateTime\":null,\"primary\":true,\"userEmailList\":[{\"userId\":844594155323252,\"familyMemberId\":0,\"email\":\"reai-probe@example.com\",\"description\":\"\",\"valid\":false,\"teamId\":379193770457578,\"autoId\":198061309,\"primary\":true,\"verifie"
+    },
+    {
+      "label": "source",
+      "status": 200,
+      "changed": false,
+      "before": "Other",
+      "after": "Other",
+      "response": "{\"status\":{\"code\":0,\"msg\":\"Success\",\"trace\":\"4kvppahfoe6ysl22\"},\"data\":[{\"id\":0,\"userId\":844594155323252,\"relation\":\"Primary\",\"firstName\":\"Chime\",\"lastName\":\"Guide\",\"subscriptionState\":7,\"birthday\":-9223372036854775808,\"createTime\":null,\"updateTime\":null,\"primary\":true,\"userEmailList\":[{\"userId\":844594155323252,\"familyMemberId\":0,\"email\":\"reai-probe@example.com\",\"description\":\"\",\"valid\":false,\"tea"
+    }
+  ],
+  "final": {
+    "firstName": "Chime",
+    "lastName": "Guide",
+    "stage": "Archived",
+    "tags": [
+      {
+        "leadId": 1127720690818985,
+        "tagId": 8094374,
+        "createTime": "2026-08-12T01:54:50GMT",
+        "updateTime": "2026-08-12T01:54:50GMT",
+        "tagName": "reai-probe",
+        "creatorUserId": 379193770457578,
+        "visibleType": 1
+      }
+    ],
+    "emails": [
+      "reai-probe@example.com"
+    ],
+    "phones": [
+      "9051234567"
+    ],
+    "source": "reai-probe"
+  }
+}

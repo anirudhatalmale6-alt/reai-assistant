@@ -69,59 +69,103 @@ def get_leads(status: str = "", limit: int = 20, sort_by: str = "") -> list[dict
 
 
 def get_lead(lead_id: str) -> dict:
-    """Get details for a specific lead."""
+    """Get details for a specific lead.
+
+    Lofty answers with {"lead": {...}} and camelCase keys - the snake_case
+    guesses this used to make silently returned an empty record for every lead.
+    """
     try:
         resp = requests.get(f"{BASE_URL}/leads/{lead_id}", headers=_headers(), timeout=15)
         resp.raise_for_status()
-        lead = resp.json().get("data", resp.json())
+        payload = resp.json()
+        lead = payload.get("lead") or payload.get("data") or payload
+        if isinstance(lead, list):
+            lead = lead[0] if lead else {}
+        inquiry = lead.get("leadInquiry") or {}
         return {
-            "id": lead.get("id", ""),
-            "name": f"{lead.get('first_name', '')} {lead.get('last_name', '')}".strip(),
-            "email": lead.get("email", ""),
-            "phone": lead.get("phone", ""),
-            "status": lead.get("status", ""),
+            "id": lead.get("leadId", ""),
+            "name": f"{lead.get('firstName') or ''} {lead.get('lastName') or ''}".strip(),
+            "email": (lead.get("emails") or [""])[0],
+            "phone": (lead.get("phones") or [""])[0],
+            "status": lead.get("stage", ""),
             "source": lead.get("source", ""),
             "stage": lead.get("stage", ""),
-            "score": lead.get("score", lead.get("lead_score", "")),
-            "last_activity": lead.get("last_activity_at", lead.get("updated_at", "")),
-            "created_at": lead.get("created_at", ""),
-            "tags": lead.get("tags", []),
-            "notes": lead.get("notes", ""),
-            "address": lead.get("address", ""),
-            "budget_min": lead.get("budget_min", lead.get("price_min", "")),
-            "budget_max": lead.get("budget_max", lead.get("price_max", "")),
-            "property_type": lead.get("property_type", ""),
-            "assigned_to": lead.get("assigned_to", lead.get("agent_name", "")),
-            "activities": lead.get("activities", []),
+            "score": lead.get("score", ""),
+            "last_activity": lead.get("lastUpdateTime", ""),
+            "created_at": lead.get("createTime", ""),
+            "tags": [t.get("tagName") for t in (lead.get("tags") or []) if isinstance(t, dict)],
+            "note": lead.get("note", ""),
+            "address": ", ".join(p for p in (lead.get("streetAddress"), lead.get("city"),
+                                             lead.get("state"), lead.get("zipCode")) if p),
+            "budget_min": inquiry.get("priceMin", ""),
+            "budget_max": inquiry.get("priceMax", ""),
+            "property_type": ", ".join(inquiry.get("propertyType") or []),
+            "assigned_to": lead.get("assignedUser", ""),
             "emails": lead.get("emails", []),
+            "phones": lead.get("phones", []),
+            "unsubscribed": lead.get("unsubscription", False),
         }
     except requests.exceptions.HTTPError as e:
         raise ValueError(f"Lofty API error: {e.response.status_code}")
 
 
 def search_leads(query: str, limit: int = 10) -> list[dict]:
-    """Search leads by name, email, or phone."""
-    params = {"q": query, "limit": limit}
-    try:
-        resp = requests.get(f"{BASE_URL}/leads/search", headers=_headers(), params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-        leads = data.get("data", data.get("leads", []))
-        return [
-            {
-                "id": lead.get("id", ""),
-                "name": f"{lead.get('first_name', '')} {lead.get('last_name', '')}".strip(),
-                "email": lead.get("email", ""),
-                "phone": lead.get("phone", ""),
-                "status": lead.get("status", ""),
-                "source": lead.get("source", ""),
-                "score": lead.get("score", lead.get("lead_score", "")),
-                "last_activity": lead.get("last_activity_at", lead.get("updated_at", "")),
-            }
-            for lead in leads
-        ]
-    except requests.exceptions.HTTPError as e:
-        raise ValueError(f"Lofty search error: {e.response.status_code}")
+    """Search leads by name, email, or phone.
+
+    There is no search endpoint - /leads/search resolves to /leads/{leadId} and
+    400s on "search". Lofty only filters server-side on email, so an email-ish
+    query goes to the API and anything else is matched against the local contact
+    index built for segmenting.
+    """
+    def shape(lead: dict) -> dict:
+        return {
+            "id": lead.get("leadId", ""),
+            "name": f"{lead.get('firstName') or ''} {lead.get('lastName') or ''}".strip(),
+            "email": (lead.get("emails") or [""])[0],
+            "phone": (lead.get("phones") or [""])[0],
+            "status": lead.get("stage", ""),
+            "source": lead.get("source", ""),
+            "stage": lead.get("stage", ""),
+            "score": lead.get("score", ""),
+            "last_activity": lead.get("lastUpdateTime", ""),
+            "assigned_to": lead.get("assignedUser", ""),
+        }
+
+    term = (query or "").strip()
+    if not term:
+        return []
+
+    if "@" in term:
+        try:
+            resp = requests.get(f"{BASE_URL}/leads", headers=_headers(),
+                                params={"email": term, "limit": min(limit, 100)}, timeout=20)
+            resp.raise_for_status()
+            return [shape(lead) for lead in (resp.json().get("leads") or [])][:limit]
+        except requests.exceptions.HTTPError as e:
+            raise ValueError(f"Lofty search error: {e.response.status_code}")
+
+    # Name or phone: use the cached index, then pull full records for the hits.
+    from app.services import segments
+    digits = "".join(ch for ch in term if ch.isdigit())
+    needle = term.lower()
+    hits = []
+    for contact in segments.load_index()["contacts"]:
+        name = f"{contact['first']} {contact['last']}".strip().lower()
+        if needle in name or (len(digits) >= 7 and digits in contact.get("phone", "")):
+            hits.append(contact)
+        if len(hits) >= limit:
+            break
+
+    results = []
+    for contact in hits:
+        try:
+            results.append(get_lead(str(contact["id"])))
+        except ValueError:
+            results.append({"id": contact["id"],
+                            "name": f"{contact['first']} {contact['last']}".strip(),
+                            "email": contact["email"], "stage": contact["stage"],
+                            "source": contact["source"], "assigned_to": contact["owner"]})
+    return results
 
 
 def get_lead_activities(lead_id: str, limit: int = 10) -> list[dict]:
@@ -150,18 +194,38 @@ def get_lead_activities(lead_id: str, limit: int = 10) -> list[dict]:
 
 
 def update_lead(lead_id: str, updates: dict) -> dict:
-    """Update a lead's information in the CRM."""
+    """Update a lead's information in the CRM.
+
+    Two traps found the hard way:
+      - PATCH is not supported at all (405). PUT is the verb, and a partial body
+        only touches the fields it names.
+      - A refused write still answers HTTP 200, with the real outcome in
+        status.code / status.msg (e.g. 300011 "This email address already exists
+        as a lead"). Checking the HTTP code alone reports success on a no-op.
+
+    Writable: firstName, lastName, stage, source, emails (list of strings),
+    phones (list of strings), tags (list of strings - replaces the whole list,
+    and an empty list is ignored, so tags cannot be cleared, only replaced).
+    """
     try:
-        resp = requests.patch(
+        resp = requests.put(
             f"{BASE_URL}/leads/{lead_id}",
             headers=_headers(),
             json=updates,
-            timeout=15,
+            timeout=20,
         )
         resp.raise_for_status()
-        return {"status": "updated", "lead_id": lead_id}
     except requests.exceptions.HTTPError as e:
-        raise ValueError(f"Failed to update lead: {e.response.status_code}")
+        raise ValueError(f"Failed to update lead: {e.response.status_code} - {e.response.text[:200]}")
+
+    try:
+        status = (resp.json().get("status") or {})
+    except ValueError:
+        status = {}
+    code, message = status.get("code"), status.get("msg")
+    if code and code != 200:
+        raise ValueError(f"Lofty refused the update ({code}): {message}")
+    return {"status": "updated", "lead_id": lead_id, "fields": sorted(updates)}
 
 
 def add_lead_note(lead_id: str, note: str) -> dict:

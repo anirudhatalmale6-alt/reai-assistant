@@ -1,0 +1,31 @@
+2127 contacts to clean, 0 skipped (nothing would be left and the API cannot store an empty tag list)
+
+sample of the change:
+  Frank Matozzo
+      before ['AI: Warm', 'Facebook', 'iphone import20221005-ecfc1', 'Sphere']
+      after  ['AI: Warm', 'Facebook', 'Sphere']
+  B
+      before ['iphone import20221005-ecfc1', 'Not Contacted', 'Sphere']
+      after  ['Not Contacted', 'Sphere']
+  Ken Nind
+      before ['iphone import20221005-ecfc1', 'Sphere', 'Unsubscribe SMS']
+      after  ['Sphere', 'Unsubscribe SMS']
+  Maureen
+      before ['iphone import20221005-ecfc1', 'Not Contacted', 'Sphere']
+      after  ['Not Contacted', 'Sphere']
+  Jesse Mangiacasale
+      before ['iphone import20221005-ecfc1', 'Not Contacted', 'Sphere']
+      after  ['Not Contacted', 'Sphere']
+  Mike Downing
+      before ['iphone import20221005-ecfc1', 'Not Contacted', 'Sphere']
+      after  ['Not Contacted', 'Sphere']
+  Jessica Pearce
+      before ['iphone import20221005-ecfc1', 'Not Contacted', 'Sphere']
+      after  ['Not Contacted', 'Sphere']
+  Alex
+      before ['Haidar', 'iphone import20221005-ecfc1', 'Sphere']
+      after  ['Haidar', 'Sphere']
+
+applying to 2127 records...
+  100/2127 (0 failed)
+  200/2127 (0 failed)

@@ -98,6 +98,7 @@ def _slim(lead: dict) -> dict:
         "first": (lead.get("firstName") or "").strip(),
         "last": (lead.get("lastName") or "").strip(),
         "email": _first_email(lead),
+        "phone": next((str(p) for p in (lead.get("phones") or []) if p), ""),
         "stage": lead.get("stage") or "(no stage)",
         "source": lead.get("source") or "(no source)",
         "tags": _tag_names(lead),

@@ -1,0 +1,189 @@
+{
+  "get_lead": {
+    "lead": {
+      "cannotText": false,
+      "cannotCall": false,
+      "cannotEmail": false,
+      "leadId": 1127720690818985,
+      "leadUserId": 844594155323252,
+      "firstName": "Chime",
+      "lastName": "Guide",
+      "birthday": "",
+      "emails": [
+        "no-reply151192546984521887219@chime.me",
+        "no-reply151192546984539692149@chime.me"
+      ],
+      "phones": [
+        "1234567890"
+      ],
+      "leadSource": -1,
+      "source": "Other",
+      "stageId": 245751,
+      "stage": "Nurture (90+ days)",
+      "assignedUserId": 379193770457578,
+      "assignedUser": "Agostino Calandrino",
+      "lenderUserId": 0,
+      "score": 35,
+      "tags": [],
+      "teamId": 379193770457578,
+      "streetAddress": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "createTime": "2023-04-25T19:40:17GMT",
+      "assignTime": "2025-02-04T02:12:00GMT",
+      "facebook": null,
+      "twitter": null,
+      "privateFlag": false,
+      "hiddenFlag": false,
+      "referredBy": null,
+      "leadInquiry": {
+        "priceMin": 795,
+        "priceMax": -1,
+        "propertyType": [
+          "Single Family Home"
+        ],
+        "bedroomsMin": 3,
+        "bathroomsMin": "1",
+        "locations": [
+          {
+            "stateCode": "CA",
+            "city": "San Francisco",
+            "zipCode": null,
+            "county": null,
+            "streetAddress": null,
+            "description": null
+          }
+        ],
+        "id": 0,
+        "leadUserId": 844594155323252,
+        "bedroomsMax": -1,
+        "bathroomsMax": "-1",
+        "modifyByAgent": false,
+        "createTime": null,
+        "updateTime": null,
+        "defaultValue": false
+      },
+      "leadPropertyList": null,
+      "customAttributes": [],
+      "lastUpdateTime": "2025-11-25T20:39:52GMT",
+      "groups": null,
+      "segments": null,
+      "unsubscription": false,
+      "leadType": 2,
+      "leadTypes": [
+        2
+      ],
+      "lastTouch": "2025-10-07T22:05:19GMT",
+      "lastVisit": "1970-01-01T00:00:00GMT",
+      "phoneStatuses": [
+        1
+      ],
+      "assignCompletionStatus": true,
+      "buyingTimeFrame": "1-3",
+      "preQual": "Yes",
+      "houseToSell": "No",
+      "fthb": "Yes",
+      "withBuyerAgent": "No",
+      "sellingTimeFrame": "N/A",
+      "mortgage": "N/A",
+      "buyHouse": "N/A",
+      "withListingAgent": "N/A",
+      "opportunity": null,
+      "leadFamilyMemberList": null,
+      "pondId": 0,
+      "pondName": null,
+      "customRoleList": [
+        {
+          "roleId": 20,
+          "role": "Assistant",
+          "assigneeId": 0,
+          "assignee": null
+        }
+      ],
+      "language": null,
+      "ownershipId": 0,
+      "ownershipScope": "TEAM"
+    }
+  },
+  "options": {
+    "status": 200,
+    "body": ""
+  },
+  "put": {
+    "status": 200,
+    "body": "{\"data\":[{\"id\":0,\"userId\":844594155323252,\"relation\":\"Primary\",\"firstName\":\"Chime\",\"lastName\":\"GuideProbe\",\"subscriptionState\":7,\"birthday\":-9223372036854775808,\"createTime\":null,\"updateTime\":null,\"primary\":true,\"userEmailList\":[{\"userId\":844594155323252,\"familyMemberId\":0,\"email\":\"no-reply151192546984521887219@chime.me\",\"description\":\"\",\"valid\":true,\"teamId\":379193770457578,\"autoId\":67761865,\"primary\":true,\"verified\":false,\"deleteFlag\":false,\"createTime\":null,\"updateTime\":null,\"isPrimary\":true,\"bounced\":false},{\"userId\":844594155323252,\"familyMemberId\":0,\"email\":\"no-reply151192546984539692149"
+  },
+  "post_id": {
+    "status": 405,
+    "body": "{\"type\":\"about:blank\",\"title\":\"Method Not Allowed\",\"status\":405,\"detail\":\"Method 'POST' is not supported.\",\"instance\":\"/v1.0/leads/1127720690818985\"}"
+  },
+  "delete": {
+    "status": 200,
+    "body": ""
+  },
+  "GET /leads/1127720690818985/tags": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /leads/1127720690818985/notes": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /leads/1127720690818985/activities": {
+    "status": 200,
+    "body": "[]"
+  },
+  "GET /leads/1127720690818985/emails": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /tags": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /leadTags": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /stages": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /pipelines": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /users": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /sources": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /leadSources": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /smartLists": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /campaigns": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /emailCampaigns": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /lead/search": {
+    "status": 404,
+    "body": "{\"code\":200121,\"message\":\"The requested API endpoint does not exist\"}"
+  },
+  "GET /leads/query": {
+    "status": 400,
+    "body": "{\"type\":\"about:blank\",\"title\":\"Bad Request\",\"status\":400,\"detail\":\"Failed to convert 'leadId' with value: 'query'\",\"instance\":\"/v1.0/leads/query\"}"
+  }
+}

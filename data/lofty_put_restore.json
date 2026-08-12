@@ -1,0 +1,26 @@
+{
+  "final": {
+    "firstName": "Chime",
+    "lastName": "Guide",
+    "stage": "Nurture (90+ days)",
+    "source": "Other",
+    "emails": [
+      "no-reply151192546984521887219@chime.me",
+      "no-reply151192546984539692149@chime.me"
+    ],
+    "phones": [
+      "1234567890"
+    ],
+    "tags": [
+      {
+        "leadId": 1127720690818985,
+        "tagId": 8094375,
+        "createTime": "2026-08-12T01:55:34GMT",
+        "updateTime": "2026-08-12T01:55:34GMT",
+        "tagName": "reai-probe-2",
+        "creatorUserId": 379193770457578,
+        "visibleType": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,333 @@
+{
+  "results": {
+    "lastName": false,
+    "tags_objects": false,
+    "tags_strings": false,
+    "stage": false,
+    "emails_strings": false,
+    "emails_objects": false,
+    "phones": false,
+    "note": false
+  },
+  "before": {
+    "lead": {
+      "cannotText": false,
+      "cannotCall": false,
+      "cannotEmail": false,
+      "leadId": 1127720690818985,
+      "leadUserId": 844594155323252,
+      "firstName": "Chime",
+      "lastName": "Guide",
+      "birthday": "",
+      "emails": [
+        "no-reply151192546984521887219@chime.me",
+        "no-reply151192546984539692149@chime.me"
+      ],
+      "phones": [
+        "1234567890"
+      ],
+      "leadSource": -1,
+      "source": "Other",
+      "stageId": 245751,
+      "stage": "Nurture (90+ days)",
+      "assignedUserId": 379193770457578,
+      "assignedUser": "Agostino Calandrino",
+      "lenderUserId": 0,
+      "score": 35,
+      "tags": [],
+      "teamId": 379193770457578,
+      "streetAddress": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "createTime": "2023-04-25T19:40:17GMT",
+      "assignTime": "2025-02-04T02:12:00GMT",
+      "facebook": null,
+      "twitter": null,
+      "privateFlag": false,
+      "hiddenFlag": false,
+      "referredBy": null,
+      "leadInquiry": {
+        "priceMin": 795,
+        "priceMax": -1,
+        "propertyType": [
+          "Single Family Home"
+        ],
+        "bedroomsMin": 3,
+        "bathroomsMin": "1",
+        "locations": [
+          {
+            "stateCode": "CA",
+            "city": "San Francisco",
+            "zipCode": null,
+            "county": null,
+            "streetAddress": null,
+            "description": null
+          }
+        ],
+        "id": 0,
+        "leadUserId": 844594155323252,
+        "bedroomsMax": -1,
+        "bathroomsMax": "-1",
+        "modifyByAgent": false,
+        "createTime": null,
+        "updateTime": null,
+        "defaultValue": false
+      },
+      "leadPropertyList": null,
+      "customAttributes": [],
+      "lastUpdateTime": "2025-11-25T20:39:52GMT",
+      "groups": null,
+      "segments": null,
+      "unsubscription": false,
+      "leadType": 2,
+      "leadTypes": [
+        2
+      ],
+      "lastTouch": "2025-10-07T22:05:19GMT",
+      "lastVisit": "1970-01-01T00:00:00GMT",
+      "phoneStatuses": [
+        1
+      ],
+      "assignCompletionStatus": true,
+      "buyingTimeFrame": "1-3",
+      "preQual": "Yes",
+      "houseToSell": "No",
+      "fthb": "Yes",
+      "withBuyerAgent": "No",
+      "sellingTimeFrame": "N/A",
+      "mortgage": "N/A",
+      "buyHouse": "N/A",
+      "withListingAgent": "N/A",
+      "opportunity": null,
+      "leadFamilyMemberList": null,
+      "pondId": 0,
+      "pondName": null,
+      "customRoleList": [
+        {
+          "roleId": 20,
+          "role": "Assistant",
+          "assigneeId": 0,
+          "assignee": null
+        }
+      ],
+      "language": null,
+      "ownershipId": 0,
+      "ownershipScope": "TEAM"
+    }
+  },
+  "after": {
+    "lead": {
+      "cannotText": false,
+      "cannotCall": false,
+      "cannotEmail": false,
+      "leadId": 1127720690818985,
+      "leadUserId": 844594155323252,
+      "firstName": "Chime",
+      "lastName": "Guide",
+      "birthday": "",
+      "emails": [
+        "no-reply151192546984521887219@chime.me",
+        "no-reply151192546984539692149@chime.me"
+      ],
+      "phones": [
+        "1234567890"
+      ],
+      "leadSource": -1,
+      "source": "Other",
+      "stageId": 245751,
+      "stage": "Nurture (90+ days)",
+      "assignedUserId": 379193770457578,
+      "assignedUser": "Agostino Calandrino",
+      "lenderUserId": 0,
+      "score": 35,
+      "tags": [],
+      "teamId": 379193770457578,
+      "streetAddress": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "createTime": "2023-04-25T19:40:17GMT",
+      "assignTime": "2025-02-04T02:12:00GMT",
+      "facebook": null,
+      "twitter": null,
+      "privateFlag": false,
+      "hiddenFlag": false,
+      "referredBy": null,
+      "leadInquiry": {
+        "priceMin": 795,
+        "priceMax": -1,
+        "propertyType": [
+          "Single Family Home"
+        ],
+        "bedroomsMin": 3,
+        "bathroomsMin": "1",
+        "locations": [
+          {
+            "stateCode": "CA",
+            "city": "San Francisco",
+            "zipCode": null,
+            "county": null,
+            "streetAddress": null,
+            "description": null
+          }
+        ],
+        "id": 0,
+        "leadUserId": 844594155323252,
+        "bedroomsMax": -1,
+        "bathroomsMax": "-1",
+        "modifyByAgent": false,
+        "createTime": null,
+        "updateTime": null,
+        "defaultValue": false
+      },
+      "leadPropertyList": null,
+      "customAttributes": [],
+      "lastUpdateTime": "2025-11-25T20:39:52GMT",
+      "groups": null,
+      "segments": null,
+      "unsubscription": false,
+      "leadType": 2,
+      "leadTypes": [
+        2
+      ],
+      "lastTouch": "2025-10-07T22:05:19GMT",
+      "lastVisit": "1970-01-01T00:00:00GMT",
+      "phoneStatuses": [
+        1
+      ],
+      "assignCompletionStatus": true,
+      "buyingTimeFrame": "1-3",
+      "preQual": "Yes",
+      "houseToSell": "No",
+      "fthb": "Yes",
+      "withBuyerAgent": "No",
+      "sellingTimeFrame": "N/A",
+      "mortgage": "N/A",
+      "buyHouse": "N/A",
+      "withListingAgent": "N/A",
+      "opportunity": null,
+      "leadFamilyMemberList": null,
+      "pondId": 0,
+      "pondName": null,
+      "customRoleList": [
+        {
+          "roleId": 20,
+          "role": "Assistant",
+          "assigneeId": 0,
+          "assignee": null
+        }
+      ],
+      "language": null,
+      "ownershipId": 0,
+      "ownershipScope": "TEAM"
+    }
+  },
+  "final": {
+    "lead": {
+      "cannotText": false,
+      "cannotCall": false,
+      "cannotEmail": false,
+      "leadId": 1127720690818985,
+      "leadUserId": 844594155323252,
+      "firstName": "Chime",
+      "lastName": "Guide",
+      "birthday": "",
+      "emails": [
+        "no-reply151192546984521887219@chime.me",
+        "no-reply151192546984539692149@chime.me"
+      ],
+      "phones": [
+        "1234567890"
+      ],
+      "leadSource": -1,
+      "source": "Other",
+      "stageId": 245751,
+      "stage": "Nurture (90+ days)",
+      "assignedUserId": 379193770457578,
+      "assignedUser": "Agostino Calandrino",
+      "lenderUserId": 0,
+      "score": 35,
+      "tags": [],
+      "teamId": 379193770457578,
+      "streetAddress": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "createTime": "2023-04-25T19:40:17GMT",
+      "assignTime": "2025-02-04T02:12:00GMT",
+      "facebook": null,
+      "twitter": null,
+      "privateFlag": false,
+      "hiddenFlag": false,
+      "referredBy": null,
+      "leadInquiry": {
+        "priceMin": 795,
+        "priceMax": -1,
+        "propertyType": [
+          "Single Family Home"
+        ],
+        "bedroomsMin": 3,
+        "bathroomsMin": "1",
+        "locations": [
+          {
+            "stateCode": "CA",
+            "city": "San Francisco",
+            "zipCode": null,
+            "county": null,
+            "streetAddress": null,
+            "description": null
+          }
+        ],
+        "id": 0,
+        "leadUserId": 844594155323252,
+        "bedroomsMax": -1,
+        "bathroomsMax": "-1",
+        "modifyByAgent": false,
+        "createTime": null,
+        "updateTime": null,
+        "defaultValue": false
+      },
+      "leadPropertyList": null,
+      "customAttributes": [],
+      "lastUpdateTime": "2025-11-25T20:39:52GMT",
+      "groups": null,
+      "segments": null,
+      "unsubscription": false,
+      "leadType": 2,
+      "leadTypes": [
+        2
+      ],
+      "lastTouch": "2025-10-07T22:05:19GMT",
+      "lastVisit": "1970-01-01T00:00:00GMT",
+      "phoneStatuses": [
+        1
+      ],
+      "assignCompletionStatus": true,
+      "buyingTimeFrame": "1-3",
+      "preQual": "Yes",
+      "houseToSell": "No",
+      "fthb": "Yes",
+      "withBuyerAgent": "No",
+      "sellingTimeFrame": "N/A",
+      "mortgage": "N/A",
+      "buyHouse": "N/A",
+      "withListingAgent": "N/A",
+      "opportunity": null,
+      "leadFamilyMemberList": null,
+      "pondId": 0,
+      "pondName": null,
+      "customRoleList": [
+        {
+          "roleId": 20,
+          "role": "Assistant",
+          "assigneeId": 0,
+          "assignee": null
+        }
+      ],
+      "language": null,
+      "ownershipId": 0,
+      "ownershipScope": "TEAM"
+    }
+  }
+}

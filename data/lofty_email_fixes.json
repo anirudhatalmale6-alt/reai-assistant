@@ -1,0 +1,122 @@
+[
+  {
+    "leadId": "1128965405311312",
+    "name": "Bola",
+    "before": [
+      "oppyeah@iclould.com"
+    ],
+    "intended": [
+      "oppyeah@icloud.com"
+    ],
+    "status": 200,
+    "after": [
+      "oppyeah@icloud.com"
+    ],
+    "verified": true
+  },
+  {
+    "leadId": "1132782410559402",
+    "name": "Brandon Velelago",
+    "before": [
+      "brandonvelelago@gmai.com"
+    ],
+    "intended": [
+      "brandonvelelago@gmail.com"
+    ],
+    "status": 200,
+    "after": [
+      "brandonvelelago@gmail.com"
+    ],
+    "verified": true
+  },
+  {
+    "leadId": "1146750851184295",
+    "name": "David D",
+    "before": [
+      "david.delgrosso@hotmai.com"
+    ],
+    "intended": [
+      "david.delgrosso@hotmail.com"
+    ],
+    "status": 200,
+    "after": [
+      "david.delgrosso@hotmail.com"
+    ],
+    "verified": true
+  },
+  {
+    "leadId": "1148388034970420",
+    "name": "Gurshan",
+    "before": [
+      "gurshansidhu0808@gmail.con"
+    ],
+    "intended": [
+      "gurshansidhu0808@gmail.com"
+    ],
+    "status": 200,
+    "after": [
+      "gurshansidhu0808@gmail.con"
+    ],
+    "verified": false
+  },
+  {
+    "leadId": "1146375778934952",
+    "name": "Isaias Martinez",
+    "before": [
+      "darisgaray@ouctlook.com"
+    ],
+    "intended": [
+      "darisgaray@outlook.com"
+    ],
+    "status": 200,
+    "after": [
+      "darisgaray@outlook.com"
+    ],
+    "verified": true
+  },
+  {
+    "leadId": "1127616735558743",
+    "name": "Mary Skipton",
+    "before": [
+      "skipy26@hotmail.com."
+    ],
+    "intended": [
+      "skipy26@hotmail.com"
+    ],
+    "status": 200,
+    "after": [
+      "skipy26@hotmail.com."
+    ],
+    "verified": false
+  },
+  {
+    "leadId": "1127734652275371",
+    "name": "Ron",
+    "before": [
+      "m@yaho.com"
+    ],
+    "intended": [
+      "m@yahoo.com"
+    ],
+    "status": 200,
+    "after": [
+      "m@yahoo.com"
+    ],
+    "verified": true
+  },
+  {
+    "leadId": "835615072576582",
+    "name": "Trisha M",
+    "before": [
+      "yup@gmail.con"
+    ],
+    "intended": [
+      "yup@gmail.com"
+    ],
+    "status": 200,
+    "after": [
+      "yup@gmail.com"
+    ],
+    "verified": true
+  }
+]
