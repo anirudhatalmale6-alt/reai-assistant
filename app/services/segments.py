@@ -58,6 +58,12 @@ def email_problem(address: str) -> str:
     return ""
 
 
+# Lofty's AI assistant flags people who told it to stop contacting them. That is
+# a do-not-call marker rather than an email unsubscribe, but somebody who has
+# said "leave me alone" does not belong in a bulk send either.
+DNC_TAGS = {"ai: dnc", "dnc", "do not contact", "do not call"}
+
+
 def _is_emailable(lead: dict) -> bool:
     """Whether we may legally and technically email this contact.
 
@@ -66,6 +72,8 @@ def _is_emailable(lead: dict) -> bool:
     no caller can forget.
     """
     if lead.get("cannotEmail") or lead.get("unsubscription"):
+        return False
+    if any(name.strip().lower() in DNC_TAGS for name in _tag_names(lead)):
         return False
     return not email_problem(_first_email(lead))
 
