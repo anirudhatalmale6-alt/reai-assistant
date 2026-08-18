@@ -181,11 +181,18 @@ function loadDashboard() {
     fetch('/api/dashboard')
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            statUnread.textContent = data.unread_emails !== undefined ? data.unread_emails : '--';
-            statToday.textContent = data.today_events !== undefined ? data.today_events : '--';
-            statTomorrow.textContent = data.tomorrow_events !== undefined ? data.tomorrow_events : '--';
+            // The counts live under data.stats, not on data itself. Reading them
+            // off the top level gave undefined every time, which is why all three
+            // tiles sat on '--' no matter what the inbox held.
+            var s = data.stats || {};
+            statUnread.textContent = s.unread_emails !== undefined ? s.unread_emails : '--';
+            statToday.textContent = s.today_events !== undefined ? s.today_events : '--';
+            statTomorrow.textContent = s.tomorrow_events !== undefined ? s.tomorrow_events : '--';
+            if (data.errors && data.errors.length) {
+                console.warn('dashboard stats incomplete:', data.errors);
+            }
         })
-        .catch(function () {});
+        .catch(function (err) { console.warn('dashboard fetch failed:', err); });
 }
 
 // ===== Auth Status =====
