@@ -66,20 +66,56 @@ def _strip_markdown(text: str) -> str:
 
 def build_email(subject: str, headline: str, paragraphs: list[str],
                 price: str = "", address: str = "", features: list[str] | None = None,
+                bullets: list[str] | None = None, bullets_title: str = "",
+                closing: list[str] | None = None,
                 cta_text: str = "", cta_url: str = "", image_url: str = "",
                 preheader: str = "") -> dict:
     """Render the email. Table-based and inline-styled, because that is what
-    Outlook and Gmail actually render reliably."""
+    Outlook and Gmail actually render reliably.
+
+    `features` are the short chips that sit in one row (3 Bed, 2 Bath). Anything
+    longer than a couple of words belongs in `bullets` instead - chips are laid
+    out as a single table row, so long ones push the email past 600px wide and
+    Outlook will not wrap them.
+    """
     brand = graphics.load_brand()
     primary, accent = brand["primary"], brand["accent"]
     logo_url = _publish_logo(brand)
     features = [f for f in (features or []) if f]
+    bullets = [b for b in (bullets or []) if b]
 
     esc = html.escape
-    body_html = "".join(
-        f'<p style="margin:0 0 16px;font:16px/1.6 Arial,Helvetica,sans-serif;color:#333;">{_inline(p)}</p>'
-        for p in paragraphs if p
+    para = lambda p: (  # noqa: E731
+        f'<p style="margin:0 0 16px;font:16px/1.6 Arial,Helvetica,sans-serif;color:#333;">'
+        f'{_inline(p)}</p>'
     )
+    body_html = "".join(para(p) for p in paragraphs if p)
+    # Copy that has to land after the highlights - the "reply and I'll send you
+    # the details" line reads as an afterthought if it sits above the bullets.
+    closing_html = "".join(para(p) for p in (closing or []) if p)
+
+    # A real list, not chips. Built from table rows with a drawn dot rather than
+    # <ul>, because Outlook's list indentation is unreliable and Gmail strips
+    # list-style on some clients.
+    bullets_html = ""
+    if bullets:
+        rows = "".join(
+            f'<tr>'
+            f'<td valign="top" style="width:18px;padding:0 0 9px;'
+            f'font:16px/1.6 Arial,Helvetica,sans-serif;color:{accent};">&bull;</td>'
+            f'<td style="padding:0 0 9px;font:16px/1.6 Arial,Helvetica,sans-serif;'
+            f'color:#333;">{_inline(b)}</td>'
+            f'</tr>'
+            for b in bullets
+        )
+        title = (f'<div style="margin:0 0 10px;font:700 15px Arial,Helvetica,sans-serif;'
+                 f'color:{primary};letter-spacing:.4px;text-transform:uppercase;">'
+                 f'{esc(bullets_title)}</div>') if bullets_title else ""
+        bullets_html = (
+            f'<div style="margin:0 0 20px;">{title}'
+            f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%">'
+            f'{rows}</table></div>'
+        )
 
     feature_html = ""
     if features:
@@ -140,7 +176,9 @@ def build_email(subject: str, headline: str, paragraphs: list[str],
       <h1 style="margin:0 0 18px;font:700 25px/1.3 Georgia,'Times New Roman',serif;color:{primary};">{_inline(headline)}</h1>
       {price_html}
       {body_html}
+      {bullets_html}
       {feature_html}
+      {closing_html}
     </td></tr>
     <tr><td style="padding:14px 28px 28px;">{cta_html}</td></tr>
     <tr><td style="background:{primary};padding:20px 28px;font:13px Arial,Helvetica,sans-serif;color:#cfd6de;">
@@ -158,8 +196,15 @@ def build_email(subject: str, headline: str, paragraphs: list[str],
     if price or address:
         text_lines.append("")
     text_lines.extend([_strip_markdown(p) for p in paragraphs if p])
+    if bullets:
+        text_lines.append("")
+        if bullets_title:
+            text_lines.append(bullets_title)
+        text_lines += [f"- {_strip_markdown(b)}" for b in bullets]
     if features:
         text_lines += ["", " | ".join(features)]
+    if closing:
+        text_lines += [""] + [_strip_markdown(p) for p in closing if p]
     if cta_text:
         text_lines += ["", cta_text, cta_url or PUBLIC_BASE_URL]
     footer = " | ".join(b for b in [brand.get("agent"), brand.get("phone"), brand.get("website")] if b)
@@ -204,6 +249,8 @@ def save_campaign(email: dict, recipients: list[dict], label: str = "deal-of-the
 
 def prepare_deal_of_the_week(subject: str, headline: str, paragraphs: list[str],
                              price: str = "", address: str = "", features: list[str] | None = None,
+                             bullets: list[str] | None = None, bullets_title: str = "",
+                             closing: list[str] | None = None,
                              cta_text: str = "", cta_url: str = "", image_url: str = "",
                              preheader: str = "", stages: list[str] | None = None,
                              sources: list[str] | None = None, tags: list[str] | None = None,
@@ -214,6 +261,7 @@ def prepare_deal_of_the_week(subject: str, headline: str, paragraphs: list[str],
                              exclude_stages=exclude_stages, cities=cities, limit=limit)
     email = build_email(subject=subject, headline=headline, paragraphs=paragraphs,
                         price=price, address=address, features=features,
+                        bullets=bullets, bullets_title=bullets_title, closing=closing,
                         cta_text=cta_text, cta_url=cta_url, image_url=image_url,
                         preheader=preheader)
     saved = save_campaign(email, picked["recipients"])

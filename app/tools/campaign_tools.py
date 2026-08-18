@@ -64,7 +64,15 @@ TOOLS = [
                 "price": {"type": "string", "description": "Formatted price, e.g. $749,900", "default": ""},
                 "address": {"type": "string", "description": "Property address", "default": ""},
                 "features": {"type": "array", "items": {"type": "string"},
-                             "description": "Short selling points, e.g. ['3 Bed', '2.5 Bath', '1,840 sq ft']", "default": []},
+                             "description": "Short chips, two or three words max, e.g. ['3 Bed', '2.5 Bath', '1,840 sq ft']. "
+                                            "They sit in a single row, so anything longer belongs in 'bullets'.", "default": []},
+                "bullets": {"type": "array", "items": {"type": "string"},
+                            "description": "Highlights that need a full phrase, e.g. "
+                                           "['Bedroom-level laundry', 'Walking distance to downtown and GO Transit']", "default": []},
+                "bullets_title": {"type": "string", "description": "Small heading above the bullets, e.g. 'Highlights'", "default": ""},
+                "closing": {"type": "array", "items": {"type": "string"},
+                            "description": "Copy that must appear AFTER the highlights, e.g. "
+                                           "['Reply to this email and I'll send you the full details.']", "default": []},
                 "cta_text": {"type": "string", "description": "Button text, e.g. 'Book a private showing'", "default": ""},
                 "cta_url": {"type": "string", "description": "Where the button points - a listing page or the agent's site", "default": ""},
                 "image_url": {"type": "string", "description": "Optional hero image URL for the top of the email", "default": ""},
@@ -92,6 +100,8 @@ def _prepare(params: dict) -> dict:
         subject=params["subject"], headline=params["headline"],
         paragraphs=params.get("paragraphs", []), price=params.get("price", ""),
         address=params.get("address", ""), features=params.get("features", []),
+        bullets=params.get("bullets", []), bullets_title=params.get("bullets_title", ""),
+        closing=params.get("closing", []),
         cta_text=params.get("cta_text", ""), cta_url=params.get("cta_url", ""),
         image_url=params.get("image_url", ""), preheader=params.get("preheader", ""),
         stages=params.get("stages"), sources=params.get("sources"), tags=params.get("tags"),
