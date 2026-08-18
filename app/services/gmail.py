@@ -4,6 +4,7 @@ Gmail API service for searching, reading, and sending emails.
 
 import base64
 import logging
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from googleapiclient.discovery import build
@@ -144,7 +145,7 @@ def _extract_body(payload: dict) -> str:
     return text_body or html_body or "(no body content)"
 
 
-def send_email(to: str, subject: str, body: str, cc: str = "") -> dict:
+def send_email(to: str, subject: str, body: str, cc: str = "", html: str = "") -> dict:
     """
     Send an email via Gmail.
 
@@ -153,13 +154,22 @@ def send_email(to: str, subject: str, body: str, cc: str = "") -> dict:
         subject: Email subject line
         body: Email body text (plain text)
         cc: CC recipients (comma-separated, optional)
+        html: Optional HTML version. Supply this when sending anything that
+            was designed to be looked at - a marketing preview arrives as raw
+            angle brackets otherwise. Clients that refuse HTML fall back to
+            `body`.
 
     Returns:
         Dict with keys: status, message_id
     """
     service = _get_gmail_service()
 
-    message = MIMEText(body)
+    if html:
+        message = MIMEMultipart("alternative")
+        message.attach(MIMEText(body or "", "plain"))
+        message.attach(MIMEText(html, "html"))
+    else:
+        message = MIMEText(body)
     message["to"] = to
     message["subject"] = subject
     if cc:

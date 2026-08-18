@@ -238,6 +238,7 @@ def save_campaign(email: dict, recipients: list[dict], label: str = "deal-of-the
         "recipients": len(recipients),
         "subject": email["subject"],
         "preview_url": f"{PUBLIC_BASE_URL}/static/generated/{preview.name}",
+        "preview_file": preview.name,
         "recipient_csv_url": f"{PUBLIC_BASE_URL}/api/exports/{csv_path.name}",
         "address_list_url": f"{PUBLIC_BASE_URL}/api/exports/{addresses.name}",
         "plain_text": email["text"],
@@ -270,3 +271,45 @@ def prepare_deal_of_the_week(subject: str, headline: str, paragraphs: list[str],
     saved["excluded_note"] = ("Contacts with no email address, marked do-not-email, or already "
                               "unsubscribed were left out automatically.")
     return saved
+
+
+def send_test(preview: str, to: str, subject: str = "") -> dict:
+    """Email a built campaign to one address so it can be looked at properly.
+
+    Agostino asked for "send it to me first" and got a chat summary pasted into
+    a plain-text email - recipient counts, tick marks, a wall of admin. What he
+    wanted was the actual email, looking the way it will look when it lands.
+    This sends the rendered HTML, so the test is the thing itself.
+
+    `preview` is either the filename or the full preview URL returned when the
+    campaign was built.
+    """
+    name = preview.rstrip("/").rsplit("/", 1)[-1]
+    if not name.endswith(".html"):
+        name += ".html"
+    path = PREVIEW_DIR / name
+    # Filename comes from the model, so keep it inside the preview directory.
+    if not path.is_file() or path.parent != PREVIEW_DIR:
+        raise ValueError(f"No preview called {name}. Build the campaign first.")
+
+    doc = path.read_text()
+    if not subject:
+        match = re.search(r"<title>(.*?)</title>", doc, re.S)
+        subject = html.unescape(match.group(1).strip()) if match else "Campaign preview"
+
+    # Merge fields are for the CRM to fill in. Left as-is they arrive as a
+    # literal "Hi {First Name}," in his test, which reads like a broken email.
+    doc = doc.replace("{First Name}", "there")
+
+    from app.services import gmail
+    result = gmail.send_email(
+        to=to,
+        subject=f"[Test] {subject}",
+        body=("This is a test of your campaign email. It is the real thing, "
+              "exactly as recipients will see it, with the merge field filled "
+              "in as 'there'. Nothing has been sent to anybody else."),
+        html=doc,
+    )
+    return {"status": result.get("status"), "sent_to": to, "subject": f"[Test] {subject}",
+            "preview_file": name,
+            "note": "This went to you only. No contact in the CRM received anything."}

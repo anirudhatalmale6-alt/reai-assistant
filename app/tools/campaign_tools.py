@@ -17,6 +17,27 @@ SEGMENT_FIELDS = {
 
 TOOLS = [
     {
+        "name": "send_test_email",
+        "description": (
+            "Email a campaign you have already built to ONE address so Agostino can see it properly. "
+            "Sends the real rendered email - his logo, the photo, the layout - exactly as recipients "
+            "would receive it, with {First Name} filled in. Nobody in the CRM gets anything.\n"
+            "\n"
+            "Use this the moment he says 'send it to me', 'let me see it' or 'email it to me'. Do NOT "
+            "instead paste the copy, the recipient count and a summary into a plain email - he has had "
+            "that and it was a wall of admin that told him nothing about how the email looks."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "preview_file": {"type": "string",
+                                 "description": "The preview_file returned by prepare_deal_of_the_week, e.g. 'deal-of-the-week-a1b2c3d4.html'"},
+                "to": {"type": "string", "description": "Where to send the test. Ask him which address if he has not said."},
+            },
+            "required": ["preview_file", "to"],
+        },
+    },
+    {
         "name": "look_up_listing",
         "description": (
             "Look up a real listing by its MLS number and get the facts back: price, beds, baths, "
@@ -78,6 +99,8 @@ TOOLS = [
             "listings, open house invites, price improvements and market updates. "
             "Write the copy yourself: a subject line that earns an open, a headline, and two to four "
             "short paragraphs in the agent's voice - warm, specific, no estate-agent cliches. "
+            "He sells in HAMILTON and the surrounding towns - Stoney Creek, Ancaster, Dundas, "
+            "Burlington, Grimsby. Never assume Toronto. "
             "Always confirm the segment with count_crm_segment first, and always show the agent the "
             "preview link and recipient count before they send.\n"
             "\n"
@@ -88,7 +111,8 @@ TOOLS = [
             "  - Price IN. Street address OUT. Keep the city ('Hamilton, Ontario') as the address "
             "    field, or half the list assumes it is nowhere near them.\n"
             "  - No MLS number - an MLS number is the address, anyone looks it up in seconds.\n"
-            "  - No hero image unless it is HIS OWN listing and he supplied the photo.\n"
+            "  - No hero image unless it is HIS OWN listing. When it is, use photos[0] from\n"
+            "    look_up_listing as image_url.\n"
             "  - Three to five short bullets, not seven.\n"
             "  - Say the quiet part in the closing: \"I've left the address out on purpose. Reply to "
             "    this email and I'll send you the address, the photos and the full details.\" Being "
@@ -181,7 +205,12 @@ def _look_up_listing(params: dict) -> dict:
     return {"found": len(found), "listings": found}
 
 
+def _send_test(params: dict) -> dict:
+    return campaign.send_test(preview=params["preview_file"], to=params["to"])
+
+
 HANDLERS = {
+    "send_test_email": _send_test,
     "look_up_listing": _look_up_listing,
     "list_crm_segments": lambda params: segments.inventory(refresh=params.get("refresh", False)),
     "count_crm_segment": _count,
