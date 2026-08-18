@@ -12,3 +12,7 @@ data/exports/
 data/crm_index.json
 data/lofty_segment_audit.json
 app/static/brand-logo.png
+
+# Listing photos pulled for previews - MLS imagery, keep it out of the public repo
+app/static/listing-*.jpg
+app/static/listing-*.webp
