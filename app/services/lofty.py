@@ -270,3 +270,110 @@ def get_pipeline_summary() -> dict:
         return summary
     except Exception as e:
         raise ValueError(f"Failed to get pipeline summary: {str(e)}")
+
+
+# --------------------------------------------------------------------------- #
+# Listings
+# --------------------------------------------------------------------------- #
+# GET /listing is undocumented and answers "Only support search agent, office or
+# MLS listing id" to anything it doesn't recognise, which reads like a dead end.
+# It isn't: mlsListingIds (plural) takes one MLS number or a comma-separated
+# list, and listingId takes Lofty's own internal id - the number in the middle of
+# a listing-detail URL on the IDX site. Everything the board sends Lofty comes
+# back, including the full description and the photos, for any brokerage's
+# listing and not just this agent's.
+LISTING_URL = f"{BASE_URL}/listing"
+
+
+def _money(value) -> str:
+    try:
+        return f"${int(float(value)):,}"
+    except (TypeError, ValueError):
+        return ""
+
+
+def _clean_number(value):
+    """Lofty uses -1 and 0 as 'not supplied'. Don't pass those on as facts."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number <= 0:
+        return None
+    return int(number) if number.is_integer() else number
+
+
+def _slim_listing(raw: dict, own_agent: str = "") -> dict:
+    agent = (raw.get("agentName") or "").strip()
+    co_agent = (raw.get("coAgentName") or "").strip()
+    mine = bool(own_agent) and own_agent.strip().lower() in {agent.lower(), co_agent.lower()}
+    zipcodes = raw.get("listingZipcode") or []
+    return {
+        "mls_number": raw.get("mlsListingId") or "",
+        "lofty_id": raw.get("listingId") or "",
+        "address": raw.get("listingStreetName") or "",
+        "city": raw.get("listingCity") or "",
+        "province": raw.get("listingState") or "",
+        "postcode": zipcodes[0] if zipcodes else "",
+        "neighbourhood": raw.get("subDivisionName") or "",
+        "price": _money(raw.get("price")),
+        "price_number": _clean_number(raw.get("price")),
+        "beds": _clean_number(raw.get("beds")),
+        "baths": _clean_number(raw.get("baths")),
+        "sqft": _clean_number(raw.get("sqft")),
+        "year_built": _clean_number(raw.get("builtYear")),
+        "property_type": raw.get("propertyTypePrimary") or "",
+        "ownership": raw.get("propertyTypeSecondary") or "",
+        "status": raw.get("listingStatus") or "",
+        "for_sale_or_lease": raw.get("purchaseType") or "",
+        "description": (raw.get("detailsDescribe") or "").strip(),
+        "photos": [p for p in (raw.get("pictureList") or []) if p],
+        "listing_agent": agent,
+        "listing_brokerage": raw.get("agentOrgName") or "",
+        # Decides whether the photos may be reused and whether the email needs a
+        # "Listed by ..." line, so it is worked out here rather than guessed at
+        # by whoever is writing the copy.
+        "is_own_listing": mine,
+        "open_house": raw.get("openHouseSchedules") or None,
+    }
+
+
+def get_listings(mls_numbers: list[str] | str) -> list[dict]:
+    """Look up one or more listings by MLS number.
+
+    Works for any brokerage's listing, because this is the same board feed that
+    populates the agent's IDX website.
+    """
+    if isinstance(mls_numbers, str):
+        mls_numbers = [mls_numbers]
+    wanted = ",".join(str(m).strip() for m in mls_numbers if str(m).strip())
+    if not wanted:
+        return []
+    from app.services.graphics import load_brand
+    own_agent = (load_brand() or {}).get("agent", "")
+    resp = requests.get(LISTING_URL, headers=_headers(),
+                        params={"mlsListingIds": wanted}, timeout=25)
+    resp.raise_for_status()
+    payload = resp.json()
+    if not isinstance(payload, dict):
+        return []
+    # An unrecognised query still answers 200, just with {"message": "Only
+    # support search agent, office or MLS listing id"} and no listIng key.
+    return [_slim_listing(item, own_agent) for item in (payload.get("listIng") or [])]
+
+
+def get_listing(mls_number: str) -> dict:
+    """One listing by MLS number, or {} if the board has nothing under it."""
+    found = get_listings([mls_number])
+    return found[0] if found else {}
+
+
+def get_listing_by_lofty_id(lofty_id: str) -> dict:
+    """Look a listing up by the id in an IDX listing-detail URL."""
+    from app.services.graphics import load_brand
+    own_agent = (load_brand() or {}).get("agent", "")
+    resp = requests.get(LISTING_URL, headers=_headers(),
+                        params={"listingId": str(lofty_id).strip()}, timeout=25)
+    resp.raise_for_status()
+    items = (resp.json() or {}).get("listIng") or []
+    return _slim_listing(items[0], own_agent) if items else {}

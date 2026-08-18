@@ -17,6 +17,34 @@ SEGMENT_FIELDS = {
 
 TOOLS = [
     {
+        "name": "look_up_listing",
+        "description": (
+            "Look up a real listing by its MLS number and get the facts back: price, beds, baths, "
+            "square footage, year built, neighbourhood, the full agent-written description, the photo "
+            "URLs, and which brokerage has it listed. Works for ANY brokerage's listing, not just "
+            "Agostino's, because this is the same board feed that fills his own website.\n"
+            "\n"
+            "CALL THIS FIRST whenever a property is mentioned and an MLS number is available, BEFORE "
+            "writing any email or social copy. It is the difference between summarising a real listing "
+            "and inventing one. Agostino quotes prices from memory and has been wrong by tens of "
+            "thousands more than once, so trust this over anything he types.\n"
+            "\n"
+            "'is_own_listing' tells you whether it is his: if true you may use the photos and give full "
+            "detail; if false do not use their photos and keep the description general. If he gives an "
+            "address instead of an MLS number, ask him for the MLS number - guessing is not acceptable."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "mls_numbers": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "One or more MLS numbers, e.g. ['40854976'] or ['X13520662']",
+                },
+            },
+            "required": ["mls_numbers"],
+        },
+    },
+    {
         "name": "list_crm_segments",
         "description": ("Show what audience segments exist in the CRM - every pipeline stage, lead "
                         "source, tag, city and assigned agent - each with how many contacts it holds "
@@ -69,7 +97,9 @@ TOOLS = [
             "    the address and kills the reason to phone him.\n"
             "\n"
             "NEVER INVENT A FACT ABOUT A PROPERTY. This is the one rule that matters more than the "
-            "copy. Use ONLY what Agostino typed. Do not add neighbourhood claims ('close to schools, "
+            "copy. Use ONLY what look_up_listing returned, or failing that what Agostino typed - and "
+            "if an MLS number exists, call look_up_listing rather than trusting his figures, because "
+            "he quotes them from memory. Do not add neighbourhood claims ('close to schools, "
             "shopping and the QEW'), condition ('you can see the care that's been invested'), layout, "
             "age, upgrades, lot size or anything else that was not given to you - you have not seen "
             "this property and neither has anyone else in this conversation. Invented details go out "
@@ -141,7 +171,18 @@ def _prepare(params: dict) -> dict:
     )
 
 
+def _look_up_listing(params: dict) -> dict:
+    from app.services import lofty
+    found = lofty.get_listings(params.get("mls_numbers") or [])
+    if not found:
+        return {"found": 0,
+                "note": "No listing came back for that MLS number. Check the number with "
+                        "Agostino rather than writing copy without it."}
+    return {"found": len(found), "listings": found}
+
+
 HANDLERS = {
+    "look_up_listing": _look_up_listing,
     "list_crm_segments": lambda params: segments.inventory(refresh=params.get("refresh", False)),
     "count_crm_segment": _count,
     "prepare_deal_of_the_week": _prepare,
