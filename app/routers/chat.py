@@ -31,12 +31,15 @@ async def chat(request: ChatRequest):
 
 @router.get("/conversations")
 async def get_conversations():
-    return list_conversations()
+    # Wrapped, not a bare list. The sidebar reads data.conversations, so a bare
+    # array came back as undefined and every past chat was invisible - the
+    # history was being saved correctly the whole time, nothing ever drew it.
+    return {"conversations": list_conversations()}
 
 
 @router.get("/conversations/{conv_id}/messages")
 async def get_conversation_messages(conv_id: str):
-    return get_messages(conv_id)
+    return {"messages": get_messages(conv_id)}
 
 
 @router.delete("/conversations/{conv_id}")
