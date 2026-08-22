@@ -8,6 +8,7 @@ Public entry point: render_graphic(...) -> dict with the saved file + web path.
 """
 import hashlib
 import json
+import os
 import re
 from io import BytesIO
 from pathlib import Path
@@ -23,6 +24,11 @@ UPLOAD_DIR = BASE_DIR.parent / "data" / "uploads"
 BRAND_FILE = BASE_DIR.parent / "data" / "brand.json"
 AI_CACHE = BASE_DIR.parent / "data" / "ai_photos"
 BRAND_DIR = BASE_DIR.parent / "data" / "brand"
+
+# Every URL handed back to the chat must be absolute. A relative "/static/..."
+# leaves the model to guess a host, and it guessed http://localhost:3000 - a
+# dead link on the agent's phone. Same default as campaign.py.
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://reai.owlhouserealty.com").rstrip("/")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -605,8 +611,9 @@ def render_graphic(fmt: str = "instagram_post", badge: str = "", headline: str =
         "format": fmt,
         "size": f"{w}x{h}",
         "file": str(out),
-        "url": f"/static/generated/{name}",
-        "note": "Preview it, then approve before posting anywhere.",
+        "url": f"{PUBLIC_BASE_URL}/static/generated/{name}",
+        "note": "Preview it, then approve before posting anywhere. Show the agent the url "
+                "field exactly as given - never rewrite the host.",
     }
 
 
@@ -624,5 +631,6 @@ def list_uploads() -> list[dict]:
                 dims = f"{im.width}x{im.height}"
         except OSError:
             dims = "?"
-        out.append({"filename": p.name, "size": dims, "url": f"/api/uploads/{p.name}"})
+        out.append({"filename": p.name, "size": dims,
+                    "url": f"{PUBLIC_BASE_URL}/api/uploads/{p.name}"})
     return out
