@@ -837,7 +837,11 @@ body {
 .pending-actions button:disabled { opacity: 0.5; cursor: default; }
 
 @media (max-width: 768px) {
-    .pending-bar { left: 0; }
-    .pending-card { flex-direction: column; }
-    .pending-card img { width: 100%; height: 150px; }
+    /* Stay a compact row on a phone. A full-width preview image pushed the
+       Approve button off the bottom of the bar, which is the one control that
+       has to be reachable. */
+    .pending-bar { left: 0; max-height: 55vh; }
+    .pending-card { padding: 12px; gap: 10px; }
+    .pending-card img { width: 60px; height: 60px; }
+    .pending-caption { font-size: 13px; max-height: 5.5em; }
 }
