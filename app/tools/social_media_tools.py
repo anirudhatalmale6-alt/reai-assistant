@@ -12,7 +12,16 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "message": {"type": "string", "description": "The post text/caption"},
-                "link": {"type": "string", "description": "Optional URL to include in the post", "default": ""},
+                "image_url": {
+                    "type": "string",
+                    "description": ("The graphic to post, using the url returned by "
+                                    "create_marketing_graphic. ALWAYS include this for a listing, "
+                                    "open house, sold or deal-of-the-week post - a Facebook post "
+                                    "with no picture is barely seen. Leave blank only for a "
+                                    "text-only announcement."),
+                    "default": "",
+                },
+                "link": {"type": "string", "description": "Optional URL to include. Ignored when image_url is set, and do NOT put the graphic's url here - that produces a grey link box with no picture.", "default": ""},
                 "scheduled_time": {"type": "string", "description": "Optional ISO datetime to schedule the post. Leave empty to post immediately.", "default": ""},
             },
             "required": ["message"],
@@ -104,7 +113,8 @@ def _draft(platform: str, caption: str, image_url: str = "", link: str = "",
 
 HANDLERS = {
     "post_to_facebook": lambda params: _draft(
-        "facebook", params["message"], "", params.get("link", ""), params.get("scheduled_time", "")),
+        "facebook", params["message"], params.get("image_url", ""),
+        params.get("link", ""), params.get("scheduled_time", "")),
     "post_to_instagram": lambda params: _draft(
         "instagram", params["caption"], params["image_url"], "", params.get("scheduled_time", "")),
     "get_facebook_posts": lambda params: social_media.get_page_posts(params.get("limit", 10)),

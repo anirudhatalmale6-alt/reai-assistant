@@ -30,7 +30,8 @@ async def publish(post_id: str) -> dict:
     try:
         if row["platform"] == "facebook":
             result = social_media.create_facebook_post(
-                row["caption"], row.get("link", ""), row.get("scheduled_time", ""))
+                row["caption"], row.get("link", ""), row.get("scheduled_time", ""),
+                row.get("image_url", ""))
         else:
             result = social_media.create_instagram_post(
                 row["caption"], row["image_url"], row.get("scheduled_time", ""))

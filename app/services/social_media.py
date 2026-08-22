@@ -19,13 +19,21 @@ def _require_connection():
         )
 
 
-def create_facebook_post(message: str, link: str = "", scheduled_time: str = "") -> dict:
+def create_facebook_post(message: str, link: str = "", scheduled_time: str = "",
+                         image_url: str = "") -> dict:
     _require_connection()
     page_id = get_page_id()
     token = get_page_token()
 
+    # A listing post has to BE the picture. Handing the graphic over as a link
+    # got us a bare grey link card reading "reai.owlhouserealty.com" and no
+    # image at all - /feed only ever renders a link preview. Photo posts go to
+    # /photos with the image as `url` and the caption as `message`.
+    endpoint = "photos" if image_url else "feed"
     payload = {"message": message, "access_token": token}
-    if link:
+    if image_url:
+        payload["url"] = image_url
+    elif link:
         payload["link"] = link
 
     if scheduled_time:
@@ -36,13 +44,14 @@ def create_facebook_post(message: str, link: str = "", scheduled_time: str = "")
         except ValueError:
             raise ValueError(f"Invalid scheduled_time format: {scheduled_time}. Use ISO format.")
 
-    resp = requests.post(f"{GRAPH_API}/{page_id}/feed", data=payload, timeout=15)
+    resp = requests.post(f"{GRAPH_API}/{page_id}/{endpoint}", data=payload, timeout=20)
     if resp.status_code != 200:
         error = resp.json().get("error", {}).get("message", resp.text)
         raise ValueError(f"Facebook post failed: {error}")
 
     result = resp.json()
-    post_id = result.get("id", "")
+    # /photos answers with the photo id plus post_id; /feed answers with id only.
+    post_id = result.get("post_id") or result.get("id", "")
     page_name = get_page_name() or "your page"
 
     if scheduled_time:
