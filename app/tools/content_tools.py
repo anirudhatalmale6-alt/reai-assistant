@@ -115,11 +115,21 @@ def _fill_from_mls(params: dict) -> dict:
 
     out = dict(params)
     if not out.get("address"):
-        out["address"] = listing.get("address", "")
+        # Lofty stores addresses shouting - "120 DUKE ST #202". Unit and
+        # direction tokens have to stay upper, the rest reads better in title case.
+        keep_upper = {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
+        out["address"] = " ".join(
+            w if (w.upper() in keep_upper or w.startswith("#")) else w.title()
+            for w in (listing.get("address", "") or "").split()
+        )
     if not out.get("price"):
         out["price"] = listing.get("price", "")
     if not out.get("features"):
         beds, baths, sqft = listing.get("beds"), listing.get("baths"), listing.get("sqft")
+        try:
+            sqft = f"{int(str(sqft).replace(',', '')):,}"
+        except (TypeError, ValueError):
+            pass
         out["features"] = [f for f in (
             f"{beds} Bed" if beds else "",
             f"{baths} Bath" if baths else "",
