@@ -766,11 +766,16 @@ body {
 
 /* ===== Pending social posts (approval gate) ===== */
 .pending-bar {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    top: 56px;
+    left: 260px;
+    right: 0;
     z-index: 60;
-    padding: 12px 20px 4px;
+    padding: 12px 20px 2px;
     background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    max-height: 45vh;
+    overflow-y: auto;
 }
 
 .pending-card {
@@ -832,6 +837,7 @@ body {
 .pending-actions button:disabled { opacity: 0.5; cursor: default; }
 
 @media (max-width: 768px) {
+    .pending-bar { left: 0; }
     .pending-card { flex-direction: column; }
     .pending-card img { width: 100%; height: 150px; }
 }

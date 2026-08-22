@@ -679,6 +679,15 @@ function escapeHtml(s) {
     });
 }
 
+// The bar is fixed, like the header and the chat area, so it would sit on top
+// of the conversation. Push the chat down by however tall the bar actually is.
+function reflowForPending() {
+    var chat = document.getElementById('chat-container');
+    if (!chat) return;
+    var visible = pendingBar.style.display !== 'none';
+    chat.style.top = visible ? (56 + pendingBar.offsetHeight) + 'px' : '';
+}
+
 function loadPendingPosts() {
     fetch('/api/pending-posts')
         .then(function (r) { return r.json(); })
@@ -687,6 +696,7 @@ function loadPendingPosts() {
             if (!rows.length) {
                 pendingBar.style.display = 'none';
                 pendingBar.innerHTML = '';
+                reflowForPending();
                 return;
             }
             pendingBar.innerHTML = rows.map(function (p) {
@@ -704,9 +714,12 @@ function loadPendingPosts() {
                     '</div></div></div>';
             }).join('');
             pendingBar.style.display = 'block';
+            reflowForPending();
         })
         .catch(function () {});
 }
+
+window.addEventListener('resize', reflowForPending);
 
 pendingBar.addEventListener('click', function (e) {
     var btn = e.target.closest('button[data-act]');
