@@ -1,9 +1,13 @@
-from app.services import social_media
+from app.services import social_media, pending_posts
 
 TOOLS = [
     {
         "name": "post_to_facebook",
-        "description": "Create a post on the Facebook Business Page. Can optionally include a link and schedule for later.",
+        "description": ("Draft a post for the Facebook Business Page. This does NOT publish it. "
+                        "The draft appears on the agent's screen with Approve and Discard buttons, "
+                        "and only goes live when the agent clicks Approve themselves. Tell the "
+                        "agent it is waiting for their approval - never tell them it has been "
+                        "posted, and never claim you are publishing it now."),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -16,7 +20,11 @@ TOOLS = [
     },
     {
         "name": "post_to_instagram",
-        "description": "Create a post on Instagram Business account. Requires an image URL (must be publicly accessible).",
+        "description": ("Draft a post for the Instagram Business account. This does NOT publish it. "
+                        "The draft appears on the agent's screen with Approve and Discard buttons, "
+                        "and only goes live when the agent clicks Approve themselves. Requires an "
+                        "image URL - use the url returned by create_marketing_graphic. Tell the "
+                        "agent it is waiting for their approval, never that it has been posted."),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -79,9 +87,26 @@ TOOLS = [
     },
 ]
 
+def _draft(platform: str, caption: str, image_url: str = "", link: str = "",
+           scheduled_time: str = "") -> dict:
+    row = pending_posts.queue(platform, caption, image_url, link, scheduled_time)
+    return {
+        "status": "awaiting_approval",
+        "draft_id": row["id"],
+        "platform": platform,
+        "message_for_agent": (
+            f"Drafted for {platform.title()}. Nothing has been posted. It is sitting at the "
+            "top of your screen with Approve and Discard buttons - it only goes live when "
+            "you press Approve."
+        ),
+    }
+
+
 HANDLERS = {
-    "post_to_facebook": lambda params: social_media.create_facebook_post(params["message"], params.get("link", ""), params.get("scheduled_time", "")),
-    "post_to_instagram": lambda params: social_media.create_instagram_post(params["caption"], params["image_url"], params.get("scheduled_time", "")),
+    "post_to_facebook": lambda params: _draft(
+        "facebook", params["message"], "", params.get("link", ""), params.get("scheduled_time", "")),
+    "post_to_instagram": lambda params: _draft(
+        "instagram", params["caption"], params["image_url"], "", params.get("scheduled_time", "")),
     "get_facebook_posts": lambda params: social_media.get_page_posts(params.get("limit", 10)),
     "get_facebook_messages": lambda params: social_media.get_page_conversations(params.get("limit", 10)),
     "read_facebook_conversation": lambda params: social_media.get_conversation_messages(params["conversation_id"], params.get("limit", 10)),

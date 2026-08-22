@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
-from app.routers import chat, auth, health, dashboard, uploads, exports
+from app.routers import chat, auth, health, dashboard, uploads, exports, social_approval
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -24,6 +24,7 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(uploads.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")
+app.include_router(social_approval.router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

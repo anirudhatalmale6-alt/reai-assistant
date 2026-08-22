@@ -629,6 +629,9 @@ function sendMessage() {
                         isStreaming = false;
                         sendBtn.disabled = false;
                         loadConversations();
+                        // A reply that drafted a post should show the Approve
+                        // card straight away, not up to 15s later.
+                        loadPendingPosts();
                         break;
                 }
             });
@@ -665,11 +668,77 @@ messageInput.addEventListener('input', function () {
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
 
+// ===== Pending social posts =====
+// The assistant drafts; only a click here publishes. It has no tool that can
+// reach Facebook or Instagram, so this button is the only way out.
+var pendingBar = document.getElementById('pending-bar');
+
+function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function loadPendingPosts() {
+    fetch('/api/pending-posts')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var rows = data.pending || [];
+            if (!rows.length) {
+                pendingBar.style.display = 'none';
+                pendingBar.innerHTML = '';
+                return;
+            }
+            pendingBar.innerHTML = rows.map(function (p) {
+                var img = p.image_url
+                    ? '<img src="' + escapeHtml(p.image_url) + '" alt="">'
+                    : '';
+                return '<div class="pending-card" data-id="' + p.id + '">' + img +
+                    '<div class="pending-body">' +
+                    '<div class="pending-title">' + escapeHtml(p.platform) +
+                    ' &middot; waiting for your approval</div>' +
+                    '<div class="pending-caption">' + escapeHtml(p.caption) + '</div>' +
+                    '<div class="pending-actions">' +
+                    '<button class="btn-approve" data-act="publish" data-id="' + p.id + '">Approve &amp; Post</button>' +
+                    '<button class="btn-discard" data-act="discard" data-id="' + p.id + '">Discard</button>' +
+                    '</div></div></div>';
+            }).join('');
+            pendingBar.style.display = 'block';
+        })
+        .catch(function () {});
+}
+
+pendingBar.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    var act = btn.dataset.act;
+    if (act === 'publish' && !confirm('Post this to your page now?')) return;
+
+    var card = btn.closest('.pending-card');
+    card.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    btn.textContent = act === 'publish' ? 'Posting...' : 'Discarding...';
+
+    fetch('/api/pending-posts/' + btn.dataset.id + '/' + act, { method: 'POST' })
+        .then(function (r) {
+            return r.json().then(function (body) {
+                if (!r.ok) throw new Error(body.detail || 'That did not work.');
+                return body;
+            });
+        })
+        .then(function () { loadPendingPosts(); })
+        .catch(function (err) {
+            alert(err.message);
+            loadPendingPosts();
+        });
+});
+
 // ===== Initialization =====
 checkAuthStatus();
 loadConversations();
 loadDashboard();
+loadPendingPosts();
 
 // Periodic refresh
 setInterval(checkAuthStatus, 30000);
 setInterval(loadDashboard, 60000);
+setInterval(loadPendingPosts, 15000);
