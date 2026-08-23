@@ -10,7 +10,9 @@ from app.services import graphics
 
 router = APIRouter()
 
-ALLOWED = {".jpg", ".jpeg", ".png", ".webp"}
+IMAGES = {".jpg", ".jpeg", ".png", ".webp"}
+DOCS = {".pdf", ".txt", ".csv"}
+ALLOWED = IMAGES | DOCS
 MAX_BYTES = 12 * 1024 * 1024  # plenty for a listing photo off a phone
 
 
@@ -36,15 +38,17 @@ async def upload_photos(files: list[UploadFile] = File(...)) -> dict:
     for upload in files:
         suffix = Path(upload.filename or "").suffix.lower()
         if suffix not in ALLOWED:
-            raise HTTPException(status_code=400,
-                                detail=f"{upload.filename}: only JPG, PNG and WEBP images are accepted")
+            raise HTTPException(
+                status_code=400,
+                detail=f"{upload.filename}: JPG, PNG, WEBP, PDF, TXT and CSV only")
         data = await upload.read()
         if len(data) > MAX_BYTES:
             raise HTTPException(status_code=413, detail=f"{upload.filename} is over 12 MB")
 
         target = _unique(graphics.UPLOAD_DIR / _safe_name(upload.filename or "photo.jpg"))
         target.write_bytes(data)
-        saved.append({"filename": target.name, "url": f"/api/uploads/{target.name}"})
+        saved.append({"filename": target.name, "url": f"/api/uploads/{target.name}",
+                      "kind": "image" if suffix in IMAGES else "file"})
 
     return {"uploaded": saved, "count": len(saved)}
 

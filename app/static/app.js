@@ -435,7 +435,7 @@ function escapeHtml(text) {
 }
 
 // ===== Add Message =====
-function addMessage(role, content) {
+function addMessage(role, content, files) {
     welcomeScreen.style.display = 'none';
 
     var msgDiv = document.createElement('div');
@@ -445,9 +445,49 @@ function addMessage(role, content) {
     avatar.className = 'message-avatar';
     avatar.textContent = role === 'user' ? 'U' : 'AI';
 
+    // Reloaded history carries the note that was appended for the assistant.
+    // Hide the plumbing and draw the thumbnails back instead.
+    if (role === 'user' && content) {
+        var marker = content.match(/\n*\[The agent attached \d+ files?: ([^\]]+?)\. Already uploaded[\s\S]*?\]\s*$/);
+        if (marker) {
+            content = content.replace(marker[0], '');
+            if (!files || !files.length) {
+                files = marker[1].split(',').map(function (n) {
+                    n = n.trim();
+                    return {
+                        filename: n,
+                        url: '/api/uploads/' + encodeURIComponent(n),
+                        kind: IMAGE_EXT.indexOf(extOf(n)) !== -1 ? 'image' : 'file'
+                    };
+                });
+            }
+        }
+    }
+
     var contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
     contentDiv.innerHTML = formatMarkdown(content);
+
+    // Show what was attached in the bubble itself, so scrolling back tells you
+    // which photo a graphic was built from.
+    if (files && files.length) {
+        var strip = document.createElement('div');
+        strip.className = 'msg-photos';
+        files.forEach(function (f) {
+            if (f.kind === 'image') {
+                var img = document.createElement('img');
+                img.src = f.url;
+                img.alt = f.filename;
+                strip.appendChild(img);
+            } else {
+                var tag = document.createElement('div');
+                tag.className = 'msg-file';
+                tag.textContent = f.filename;
+                strip.appendChild(tag);
+            }
+        });
+        contentDiv.appendChild(strip);
+    }
 
     msgDiv.appendChild(avatar);
     msgDiv.appendChild(contentDiv);
@@ -539,17 +579,174 @@ function formatMarkdown(text) {
     return html;
 }
 
+// ===== Attachments =====
+// The backend has taken uploads since day one - there was just no way to reach
+// it from the chat. Files upload the moment they are picked, so send is instant.
+var attachBtn = document.getElementById('attach-btn');
+var fileInput = document.getElementById('file-input');
+var attachStrip = document.getElementById('attach-strip');
+var dropVeil = document.getElementById('drop-veil');
+var attachments = [];
+var IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp'];
+
+function extOf(name) {
+    var bits = String(name || '').split('.');
+    return bits.length > 1 ? bits.pop().toLowerCase() : '';
+}
+
+function renderAttachStrip() {
+    attachStrip.innerHTML = '';
+    attachStrip.classList.toggle('has-files', attachments.length > 0);
+
+    attachments.forEach(function (f, i) {
+        var chip = document.createElement('div');
+        chip.className = 'attach-chip' + (f.status ? ' ' + f.status : '');
+
+        if (f.kind === 'image' && f.url) {
+            var img = document.createElement('img');
+            img.src = f.url;
+            img.alt = f.filename;
+            chip.appendChild(img);
+        } else {
+            var glyph = document.createElement('div');
+            glyph.className = 'chip-glyph';
+            glyph.textContent = (extOf(f.filename) || 'FILE').toUpperCase().slice(0, 4);
+            chip.appendChild(glyph);
+        }
+
+        var name = document.createElement('span');
+        name.className = 'chip-name';
+        name.textContent = f.status === 'uploading' ? 'Uploading...'
+            : (f.status === 'failed' ? (f.error || 'Upload failed') : f.filename);
+        chip.appendChild(name);
+
+        var remove = document.createElement('button');
+        remove.className = 'chip-remove';
+        remove.type = 'button';
+        remove.innerHTML = '&times;';
+        remove.title = 'Remove';
+        remove.addEventListener('click', function () { removeAttachment(i); });
+        chip.appendChild(remove);
+
+        attachStrip.appendChild(chip);
+    });
+}
+
+function removeAttachment(i) {
+    var f = attachments[i];
+    attachments.splice(i, 1);
+    renderAttachStrip();
+    // Drop it from the server too, so removing a wrong photo does not leave it
+    // sitting in the list the assistant can pick from.
+    if (f && f.status === 'done' && f.filename) {
+        fetch('/api/uploads/' + encodeURIComponent(f.filename), { method: 'DELETE' })
+            .catch(function () { });
+    }
+}
+
+function uploadFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+
+    files.forEach(function (file) {
+        var placeholder = {
+            filename: file.name,
+            kind: IMAGE_EXT.indexOf(extOf(file.name)) !== -1 ? 'image' : 'file',
+            url: '',
+            status: 'uploading'
+        };
+        attachments.push(placeholder);
+        renderAttachStrip();
+
+        var form = new FormData();
+        form.append('files', file);
+
+        fetch('/api/uploads', { method: 'POST', body: form })
+            .then(function (r) {
+                return r.json().then(function (data) {
+                    if (!r.ok) throw new Error(data.detail || ('Upload failed (' + r.status + ')'));
+                    return data;
+                });
+            })
+            .then(function (data) {
+                var saved = (data.uploaded || [])[0];
+                if (!saved) throw new Error('Upload failed');
+                placeholder.filename = saved.filename;
+                placeholder.url = saved.url;
+                placeholder.kind = saved.kind || placeholder.kind;
+                placeholder.status = 'done';
+                renderAttachStrip();
+            })
+            .catch(function (err) {
+                placeholder.status = 'failed';
+                placeholder.error = String(err.message || err).slice(0, 80);
+                renderAttachStrip();
+            });
+    });
+}
+
+attachBtn.addEventListener('click', function () { fileInput.click(); });
+
+fileInput.addEventListener('change', function () {
+    uploadFiles(fileInput.files);
+    fileInput.value = '';   // so picking the same file twice still fires
+});
+
+// Paste a screenshot straight into the box
+messageInput.addEventListener('paste', function (e) {
+    var items = (e.clipboardData && e.clipboardData.files) || [];
+    if (items.length) {
+        e.preventDefault();
+        uploadFiles(items);
+    }
+});
+
+// Drag and drop anywhere on the page
+var dragDepth = 0;
+window.addEventListener('dragenter', function (e) {
+    if (!e.dataTransfer || e.dataTransfer.types.indexOf('Files') === -1) return;
+    dragDepth++;
+    dropVeil.classList.add('show');
+});
+window.addEventListener('dragleave', function () {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) dropVeil.classList.remove('show');
+});
+window.addEventListener('dragover', function (e) { e.preventDefault(); });
+window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dragDepth = 0;
+    dropVeil.classList.remove('show');
+    if (e.dataTransfer && e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+});
+
 // ===== Send Message =====
 function sendMessage() {
     var text = messageInput.value.trim();
-    if (!text || isStreaming) return;
+    var ready = attachments.filter(function (f) { return f.status === 'done'; });
+    if ((!text && !ready.length) || isStreaming) return;
+    if (attachments.some(function (f) { return f.status === 'uploading'; })) return;
+
+    // Tell the assistant the filenames. They are already on the server, so it
+    // must use them directly - never send the agent off to find a photo.
+    var payload = text;
+    if (ready.length) {
+        var names = ready.map(function (f) { return f.filename; }).join(', ');
+        payload = (text ? text + '\n\n' : '') +
+            '[The agent attached ' + ready.length + ' file' + (ready.length > 1 ? 's' : '') +
+            ': ' + names + '. Already uploaded to REAI. Pass an image filename straight ' +
+            'into create_marketing_graphic as the photo, or use read_document for a PDF, ' +
+            'TXT or CSV. Do not ask the agent to upload, link or fetch it again.]';
+    }
 
     isStreaming = true;
     sendBtn.disabled = true;
     messageInput.value = '';
     messageInput.style.height = 'auto';
+    attachments = [];
+    renderAttachStrip();
 
-    addMessage('user', text);
+    addMessage('user', text, ready);
 
     var currentToolIndicator = null;
     var assistantContentDiv = null;
@@ -559,7 +756,7 @@ function sendMessage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            message: text,
+            message: payload,
             conversation_id: conversationId
         })
     }).then(function (response) {

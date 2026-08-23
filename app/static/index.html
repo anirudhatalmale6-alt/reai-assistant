@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#0f1117">
     <link rel="manifest" href="/static/manifest.json">
     <title>REAI - Real Estate AI Assistant</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260611b">
+    <link rel="stylesheet" href="/static/style.css?v=20260823a">
 </head>
 <body>
     <!-- Sidebar Overlay -->
@@ -77,16 +77,33 @@
 
     <!-- Input Area -->
     <div class="input-area" id="input-area">
-        <div class="input-wrapper">
-            <textarea id="message-input" placeholder="Ask REAI anything..." rows="1"></textarea>
-            <button class="send-btn" id="send-btn">
+        <div class="input-wrapper" id="input-wrapper">
+            <!-- Files picked but not sent yet. They upload the moment they are
+                 chosen, so pressing send is instant. -->
+            <div class="attach-strip" id="attach-strip"></div>
+            <div class="input-row">
+                <button class="attach-btn" id="attach-btn" title="Add photos or a PDF" aria-label="Add photos or a PDF">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                </button>
+                <input type="file" id="file-input" multiple
+                       accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,.pdf,.txt,.csv" hidden>
+                <textarea id="message-input" placeholder="Ask REAI anything..." rows="1"></textarea>
+                <button class="send-btn" id="send-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
-            </button>
+                </button>
+            </div>
         </div>
     </div>
+
+    <!-- Shown while a photo is dragged over the window -->
+    <div class="drop-veil" id="drop-veil">Drop photos to add them</div>
 
     <!-- Google Auth Modal -->
     <div class="modal-overlay" id="google-auth-modal">
@@ -139,6 +156,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260611b"></script>
+    <script src="/static/app.js?v=20260823a"></script>
 </body>
 </html>

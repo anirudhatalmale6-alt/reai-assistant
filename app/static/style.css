@@ -485,13 +485,19 @@ body {
     max-width: 800px;
     margin: 0 auto;
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
     gap: 8px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 8px 12px;
     transition: border-color 0.2s;
+}
+
+.input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
 }
 
 .input-wrapper:focus-within {
@@ -538,6 +544,148 @@ body {
 .send-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* ===== Attachments ===== */
+.attach-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.attach-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Empty by default so it takes no room until something is attached */
+.attach-strip {
+    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.attach-strip.has-files {
+    display: flex;
+}
+
+.attach-chip {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 220px;
+    padding: 6px 28px 6px 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.attach-chip img {
+    width: 34px;
+    height: 34px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.attach-chip .chip-glyph {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    flex-shrink: 0;
+}
+
+.attach-chip .chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attach-chip.uploading {
+    opacity: 0.6;
+}
+
+.attach-chip.failed {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.chip-remove {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+}
+
+.chip-remove:hover {
+    color: var(--text);
+}
+
+/* Thumbnails inside a sent message */
+.msg-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.msg-photos img {
+    width: 92px;
+    height: 92px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.msg-photos .msg-file {
+    padding: 6px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.drop-veil {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 17, 23, 0.82);
+    border: 2px dashed var(--primary);
+    color: var(--text);
+    font-size: 18px;
+    pointer-events: none;
+}
+
+.drop-veil.show {
+    display: flex;
 }
 
 /* ===== Modal ===== */
@@ -690,6 +838,15 @@ body {
 
     .input-wrapper textarea {
         font-size: 16px;
+    }
+
+    .attach-chip {
+        max-width: 150px;
+    }
+
+    .msg-photos img {
+        width: 76px;
+        height: 76px;
     }
 
     .stats-row {
