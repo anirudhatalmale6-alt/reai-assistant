@@ -56,7 +56,17 @@ TOOLS = [
                     "description": "Short selling points, e.g. ['3 Bed', '2.5 Bath', '1,840 sq ft']. Max 4 on social, 6 on a flyer.",
                     "default": [],
                 },
-                "cta": {"type": "string", "description": "Call to action, e.g. 'Open House Sat 2-4pm' or 'Book a private showing'", "default": ""},
+                # The old example here read "Open House Sat 2-4pm" and the model
+                # copied it wholesale onto a Sunday open house. Never put a day
+                # or a time in an example - it gets treated as the answer.
+                "cta": {
+                    "type": "string",
+                    "description": ("Call to action, e.g. 'Book a private showing'. NEVER invent an "
+                                    "open house day or time. When mls_number is given the real open "
+                                    "house is filled in for you from the listing; if the listing has "
+                                    "none and the agent has not told you one, leave this blank and ask."),
+                    "default": "",
+                },
                 "body": {"type": "string", "description": "Longer description paragraph. Only used on flyer_letter.", "default": ""},
                 "photo": {"type": "string", "description": "Uploaded filename, public image URL, 'auto' to generate, or blank", "default": ""},
                 "photo_prompt": {"type": "string", "description": "What the generated photo should show (only used when photo is 'auto')", "default": ""},
@@ -131,10 +141,19 @@ def _fill_from_mls(params: dict) -> dict:
         except (TypeError, ValueError):
             pass
         out["features"] = [f for f in (
-            f"{beds} Bed" if beds else "",
+            f"{_beds_label(listing, beds)} Bed" if beds else "",
             f"{baths} Bath" if baths else "",
             f"{sqft} sq ft" if sqft else "",
         ) if f]
+
+    # The real open house, straight off the listing. Left to itself the model
+    # made one up - it put "Saturday 2-4 PM" on a Sunday open house, which would
+    # have sent buyers to a locked door.
+    if not out.get("cta") and listing.get("open_house"):
+        out["cta"] = f"Open House {listing['open_house']}"
+
+    if not out.get("mls_display"):
+        out["mls_display"] = listing.get("mls_number", mls)
 
     photos = listing.get("photos") or []
     if not out.get("photo") and photos:
@@ -147,6 +166,20 @@ def _fill_from_mls(params: dict) -> dict:
         out["_photo_note"] = (f"Used photo {idx + 1} of {len(photos)} from the listing. "
                               f"Ask for a different photo_index to change it.")
     return out
+
+
+def _beds_label(listing: dict, beds) -> str:
+    """Ontario counts a lower-level bedroom separately - "3+1", not "4".
+
+    Lofty only gives the total, so take the split off the listing's own wording
+    when it is there. A finished-basement bedroom advertised as a plain fourth
+    bedroom is the kind of thing RECO takes an interest in.
+    """
+    import re
+    m = re.search(r"(\d+)\s*\+\s*(\d+)\s*bedroom", listing.get("description", "") or "", re.I)
+    if m and int(m.group(1)) + int(m.group(2)) == int(beds):
+        return f"{m.group(1)}+{m.group(2)}"
+    return str(beds)
 
 
 def _graphic(params: dict) -> dict:
@@ -162,6 +195,7 @@ def _graphic(params: dict) -> dict:
         body=params.get("body", ""),
         photo=params.get("photo", ""),
         photo_prompt=params.get("photo_prompt", ""),
+        mls_display=params.get("mls_display", ""),
     )
     if params.get("_photo_note"):
         result["photo_used"] = params["_photo_note"]

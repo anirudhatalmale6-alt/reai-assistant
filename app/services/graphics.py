@@ -315,6 +315,25 @@ def resolve_photo(photo: str, box: tuple, brand: dict, photo_prompt: str = "") -
 # --------------------------------------------------------------------------- #
 # shared blocks
 # --------------------------------------------------------------------------- #
+def _mls_line(img: Image.Image, d: dict, brand: dict, footer_h: int, scale: float = 1.0) -> None:
+    """MLS number, small and dim, tucked just above the footer on the right.
+
+    A listing graphic without the MLS number gives a buyer nothing to search.
+    Sits outside the copy block on purpose so it can never push the call to
+    action off the edge.
+    """
+    if not d.get("mls"):
+        return
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+    fnt = font("body", round(21 * scale), 500)
+    text = f"MLS® {d['mls']}"
+    light = _rgb(brand["light"])
+    draw.text((w - round(48 * scale) - _text_w(draw, text, fnt),
+               h - footer_h - round(34 * scale)),
+              text, font=fnt, fill=tuple(int(c * 0.62) for c in light))
+
+
 def _footer(img: Image.Image, brand: dict, height: int, scale: float = 1.0) -> None:
     """Accent rule + contact strip along the bottom, logo on the right."""
     draw = ImageDraw.Draw(img)
@@ -447,9 +466,15 @@ def _layout_stack(size: tuple, d: dict, brand: dict) -> Image.Image:
     if feats:
         y = _features_row(draw, pad, y + round(10 * scale), feats, brand, scale)
     if d.get("cta"):
-        _chip(draw, (pad, y + round(6 * scale)), d["cta"], cta_f,
+        # Clamp the chip inside the panel. An open house line like
+        # "Open House Sun Aug 23, 2:00pm - 4:00pm" is long enough that the block
+        # can run past the panel and jam the chip into the footer rule.
+        cta_y = min(y + round(6 * scale),
+                    h - footer_h - round(34 * scale) - cta_h)
+        _chip(draw, (pad, cta_y), d["cta"], cta_f,
               accent, _rgb(brand["primary"]), (round(28 * scale), round(13 * scale)))
 
+    _mls_line(img, d, brand, footer_h, scale)
     _footer(img, brand, footer_h, scale)
     return img
 
@@ -501,6 +526,7 @@ def _layout_split(size: tuple, d: dict, brand: dict) -> Image.Image:
         _chip(draw, (x, y + round(6 * scale)), d["cta"], font("sans", round(21 * scale), 700),
               accent, _rgb(brand["primary"]), (round(24 * scale), round(11 * scale)))
 
+    _mls_line(img, d, brand, round(96 * scale), scale * 0.9)
     _footer(img, brand, round(96 * scale), scale * 0.9)
     return img
 
@@ -585,7 +611,7 @@ def _slug(text: str) -> str:
 def render_graphic(fmt: str = "instagram_post", badge: str = "", headline: str = "",
                    price: str = "", address: str = "", features: list | None = None,
                    cta: str = "", body: str = "", photo: str = "",
-                   photo_prompt: str = "") -> dict:
+                   photo_prompt: str = "", mls_display: str = "") -> dict:
     """Render one branded graphic. Returns the saved path + /static web path."""
     if fmt not in FORMATS:
         raise ValueError(f"Unknown format '{fmt}'. Options: {', '.join(FORMATS)}")
@@ -595,7 +621,7 @@ def render_graphic(fmt: str = "instagram_post", badge: str = "", headline: str =
     data = {
         "badge": badge, "headline": headline, "price": price, "address": address,
         "features": [f for f in (features or []) if f], "cta": cta, "body": body,
-        "photo": photo, "photo_prompt": photo_prompt,
+        "photo": photo, "photo_prompt": photo_prompt, "mls": mls_display,
     }
 
     img = LAYOUTS[layout]((w, h), data, brand)
