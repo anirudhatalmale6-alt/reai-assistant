@@ -30,11 +30,15 @@ async def chat(request: ChatRequest):
 
 
 @router.get("/conversations")
-async def get_conversations():
+async def get_conversations(q: str | None = None):
     # Wrapped, not a bare list. The sidebar reads data.conversations, so a bare
     # array came back as undefined and every past chat was invisible - the
     # history was being saved correctly the whole time, nothing ever drew it.
-    return {"conversations": list_conversations()}
+    #
+    # `q` searches inside the messages too, not just the titles. Titles are cut
+    # from the opening line, so there are six chats called "Create a social
+    # media post" and no way to tell them apart from the outside.
+    return {"conversations": list_conversations(query=q)}
 
 
 @router.get("/conversations/{conv_id}/messages")

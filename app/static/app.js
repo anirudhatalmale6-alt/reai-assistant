@@ -113,18 +113,104 @@ newChatBtn.addEventListener('click', function () {
 });
 
 // ===== Load Conversations =====
+// The list is grouped by day and searchable. A flat run of 37 rows, six of them
+// reading "Create a social media post", is technically the whole history and
+// practically unusable - you can see it but you can't find anything in it.
+
+var searchTerm = '';
+
+// Local midnight, not UTC. created_at comes back as ...+00:00, so a chat at
+// 9pm Toronto is already "tomorrow" in UTC and would land in the wrong bucket.
+function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function dayBucket(iso) {
+    var t = new Date(iso);
+    if (isNaN(t)) { return { key: 'zz', label: 'Earlier', stamp: '' }; }
+    var days = Math.round((startOfDay(new Date()) - startOfDay(t)) / 86400000);
+    var time = t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (days <= 0) { return { key: 'a', label: 'Today', stamp: time }; }
+    if (days === 1) { return { key: 'b', label: 'Yesterday', stamp: 'Yesterday' }; }
+    if (days < 7) {
+        return { key: 'c', label: 'Previous 7 days',
+                 stamp: t.toLocaleDateString([], { weekday: 'long' }) };
+    }
+    if (days < 30) {
+        return { key: 'd', label: 'Previous 30 days',
+                 stamp: t.toLocaleDateString([], { month: 'short', day: 'numeric' }) };
+    }
+    return { key: 'e', label: 'Older',
+             stamp: t.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) };
+}
+
+// Titles are cut from the opening message, so a multi-line social post becomes
+// a title with newlines in it. Flatten before it goes in the sidebar.
+function oneLine(s) {
+    return (s || '').replace(/\s+/g, ' ').trim();
+}
+
+function highlight(text, term) {
+    var safe = escapeHtml(text);
+    if (!term) { return safe; }
+    var i = safe.toLowerCase().indexOf(escapeHtml(term).toLowerCase());
+    if (i < 0) { return safe; }
+    var n = escapeHtml(term).length;
+    return safe.slice(0, i) + '<mark>' + safe.slice(i, i + n) + '</mark>' + safe.slice(i + n);
+}
+
 function loadConversations() {
-    fetch('/api/conversations')
+    var url = '/api/conversations' + (searchTerm ? '?q=' + encodeURIComponent(searchTerm) : '');
+    var term = searchTerm;
+    fetch(url)
         .then(function (r) { return r.json(); })
         .then(function (data) {
+            // A slow response for an old search term must not overwrite the
+            // results for what he's typing now.
+            if (term !== searchTerm) { return; }
+
             sidebarList.innerHTML = '';
-            (data.conversations || []).forEach(function (conv) {
+            var convos = data.conversations || [];
+
+            if (!convos.length) {
+                var empty = document.createElement('div');
+                empty.className = 'sidebar-empty';
+                empty.textContent = term
+                    ? 'No chats matching "' + term + '"'
+                    : 'No past chats yet.';
+                sidebarList.appendChild(empty);
+                return;
+            }
+
+            var lastGroup = null;
+            convos.forEach(function (conv) {
+                var when = dayBucket(conv.last_at || conv.created_at);
+
+                if (when.label !== lastGroup) {
+                    lastGroup = when.label;
+                    var head = document.createElement('div');
+                    head.className = 'sidebar-group';
+                    head.textContent = when.label;
+                    sidebarList.appendChild(head);
+                }
+
                 var item = document.createElement('div');
                 item.className = 'sidebar-item' + (conv.id === conversationId ? ' active' : '');
-                item.innerHTML =
-                    '<span class="sidebar-item-title">' + escapeHtml(conv.title || 'Untitled') + '</span>' +
+
+                var body = '<span class="sidebar-item-main">' +
+                    '<span class="sidebar-item-title">' +
+                        highlight(oneLine(conv.title) || 'Untitled', term) + '</span>';
+                if (conv.snippet) {
+                    body += '<span class="sidebar-item-snippet">' +
+                        highlight(oneLine(conv.snippet), term) + '</span>';
+                }
+                body += '<span class="sidebar-item-meta">' + escapeHtml(when.stamp) + '</span>';
+                body += '</span>';
+
+                item.innerHTML = body +
                     '<button class="sidebar-item-delete" title="Delete">&times;</button>';
-                item.querySelector('.sidebar-item-title').addEventListener('click', function () {
+
+                item.querySelector('.sidebar-item-main').addEventListener('click', function () {
                     loadConversation(conv.id);
                     closeSidebar();
                 });
@@ -136,6 +222,36 @@ function loadConversations() {
             });
         })
         .catch(function () {});
+}
+
+// ===== Sidebar Search =====
+var searchInput = document.getElementById('sidebar-search-input');
+var searchClear = document.getElementById('sidebar-search-clear');
+var searchTimer = null;
+
+if (searchInput) {
+    searchInput.addEventListener('input', function () {
+        // Debounced - searching message bodies touches every row, no need to
+        // do it on each keystroke.
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function () {
+            searchTerm = searchInput.value.trim();
+            searchClear.classList.toggle('visible', !!searchTerm);
+            loadConversations();
+        }, 220);
+    });
+    searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); }
+    });
+}
+if (searchClear) {
+    searchClear.addEventListener('click', function () {
+        searchInput.value = '';
+        searchTerm = '';
+        searchClear.classList.remove('visible');
+        loadConversations();
+        searchInput.focus();
+    });
 }
 
 // ===== Load Conversation =====

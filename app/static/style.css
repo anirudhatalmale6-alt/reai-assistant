@@ -74,22 +74,116 @@ body {
     background: var(--primary-hover);
 }
 
+/* ===== Sidebar search ===== */
+.sidebar-search {
+    position: relative;
+    margin-bottom: 10px;
+    flex: none;
+}
+
+.sidebar-search input {
+    width: 100%;
+    padding: 8px 28px 8px 30px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.sidebar-search input:focus {
+    border-color: var(--primary);
+}
+
+.sidebar-search input::placeholder {
+    color: var(--text-dim);
+}
+
+/* Magnifier drawn in CSS - no icon font, nothing to fetch. */
+.sidebar-search::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 12px;
+    width: 7px;
+    height: 7px;
+    border: 1.5px solid var(--text-dim);
+    border-radius: 50%;
+    box-shadow: 4px 4px 0 -1.5px var(--text-dim);
+    pointer-events: none;
+}
+
+/* Chrome draws its own search-cancel button; hide it so there is only one. */
+.sidebar-search input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.sidebar-search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+    display: none;
+}
+
+.sidebar-search-clear.visible {
+    display: block;
+}
+
+.sidebar-search-clear:hover {
+    color: var(--text);
+}
+
 .sidebar-list {
     flex: 1;
     overflow-y: auto;
+}
+
+/* Day headings. Without them 37 rows read as one undifferentiated wall. */
+.sidebar-group {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    opacity: 0.75;
+    padding: 12px 12px 5px;
+}
+
+.sidebar-group:first-child {
+    padding-top: 2px;
+}
+
+.sidebar-empty {
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 14px 12px;
+    line-height: 1.5;
 }
 
 .sidebar-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border-radius: 8px;
     cursor: pointer;
     font-size: 13px;
     color: var(--text-dim);
     transition: background 0.15s, color 0.15s;
     margin-bottom: 2px;
+    gap: 4px;
 }
 
 .sidebar-item:hover {
@@ -102,11 +196,44 @@ body {
     color: #fff;
 }
 
-.sidebar-item-title {
+.sidebar-item-main {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-item-title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* The matched text, so a search result shows WHERE it hit and not just that
+   it did. */
+.sidebar-item-snippet {
+    font-size: 11.5px;
+    opacity: 0.72;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-item-meta {
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+.sidebar-item mark {
+    background: rgba(250, 204, 21, 0.28);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.sidebar-item.active mark {
+    background: rgba(255, 255, 255, 0.32);
 }
 
 .sidebar-item-delete {
@@ -118,6 +245,8 @@ body {
     padding: 0 4px;
     opacity: 0;
     transition: opacity 0.15s;
+    flex: none;
+    align-self: center;
 }
 
 .sidebar-item:hover .sidebar-item-delete {
@@ -126,6 +255,14 @@ body {
 
 .sidebar-item-delete:hover {
     color: #ef4444;
+}
+
+/* No hover on a touch screen, so the delete button would never appear.
+   On mobile it is always visible. */
+@media (hover: none) {
+    .sidebar-item-delete {
+        opacity: 0.55;
+    }
 }
 
 /* ===== Header ===== */

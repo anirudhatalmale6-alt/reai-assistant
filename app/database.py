@@ -2,6 +2,7 @@
 SQLite database for storing chat conversations and messages.
 """
 
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -115,26 +116,92 @@ def get_messages(conversation_id: str) -> list[dict]:
         conn.close()
 
 
-def list_conversations() -> list[dict]:
+def list_conversations(query: str | None = None) -> list[dict]:
     """
-    List all conversations ordered by most recent first.
-    Returns a list of dicts with keys: id, title, created_at, message_count.
+    List conversations, most recently ACTIVE first.
+
+    Ordering is by last message, not by created_at. Sorting by creation date
+    buried any chat that was started a while ago and picked up again later -
+    it stayed pinned to wherever it began, so carrying on an old thread made
+    it no easier to find.
+
+    `query` searches the title AND the text of every message, so a chat can be
+    found by something said inside it rather than only by its first line. The
+    titles are auto-generated from the opening message, which means half of
+    them read "Create a social media post"; matching on content is the only
+    way to tell those apart. Returns a `snippet` for content matches so the
+    sidebar can show WHERE it hit.
     """
     conn = _get_connection()
     try:
         rows = conn.execute(
             """
             SELECT c.id, c.title, c.created_at,
-                   COUNT(m.id) AS message_count
+                   COUNT(m.id) AS message_count,
+                   COALESCE(MAX(m.created_at), c.created_at) AS last_at
             FROM conversations c
             LEFT JOIN messages m ON m.conversation_id = c.id
             GROUP BY c.id
-            ORDER BY c.created_at DESC
+            ORDER BY last_at DESC
             """
         ).fetchall()
-        return [dict(row) for row in rows]
+        convos = [dict(row) for row in rows]
+
+        if not query or not query.strip():
+            return convos
+
+        # LIKE with an escape char - a literal % or _ in his search text must
+        # not turn into a wildcard.
+        needle = query.strip()
+        like = "%" + needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+        hits = conn.execute(
+            """
+            SELECT conversation_id, role, content
+            FROM messages
+            WHERE content LIKE ? ESCAPE '\\'
+            ORDER BY created_at ASC, id ASC
+            """,
+            (like,),
+        ).fetchall()
+
+        first_hit: dict[str, str] = {}
+        for row in hits:
+            if row["conversation_id"] in first_hit:
+                continue
+            first_hit[row["conversation_id"]] = _snippet(row["content"], needle)
+
+        low = needle.lower()
+        results = []
+        for c in convos:
+            title_match = low in (c["title"] or "").lower()
+            if c["id"] in first_hit:
+                c["snippet"] = first_hit[c["id"]]
+                results.append(c)
+            elif title_match:
+                results.append(c)
+        return results
     finally:
         conn.close()
+
+
+def _snippet(content: str, needle: str, width: int = 60) -> str:
+    """A window of `content` centred on the match, for the sidebar preview.
+
+    The stored replies are markdown, so a raw slice shows things like
+    "87 Monte Dr** - **Signing". Strip the formatting characters - the sidebar
+    renders plain text and the asterisks only read as noise.
+    """
+    idx = content.lower().find(needle.lower())
+    if idx < 0:
+        start, end = 0, min(len(content), width)
+    else:
+        start = max(0, idx - width // 3)
+        end = min(len(content), idx + len(needle) + width)
+
+    out = re.sub(r"[*_`#>]+", "", content[start:end])
+    out = re.sub(r"\s+", " ", out).strip()
+    return ("..." if start > 0 else "") + out + ("..." if end < len(content) else "")
 
 
 def delete_conversation(conversation_id: str) -> bool:
