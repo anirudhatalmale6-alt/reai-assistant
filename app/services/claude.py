@@ -10,9 +10,11 @@ from app.database import save_message, get_messages, update_conversation_title, 
 
 client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-SYSTEM_PROMPT_TEMPLATE = """You are REAI, a professional real estate AI assistant for a Toronto-based real estate agent. You help manage their daily workflow by connecting to Gmail, Google Calendar, Google Drive, Lofty CRM, and MLS/Realtor.ca.
-
-CURRENT DATE AND TIME: {current_datetime}
+# NOTE: keep this text byte-identical between requests. It is the cached
+# prefix (see _build_system_prompt), so anything that changes per-request -
+# a time, a name, a lead count - must NOT go in here. The clock lives in its
+# own block after the cache breakpoint.
+SYSTEM_PROMPT_STATIC = """You are REAI, a professional real estate AI assistant for a Toronto-based real estate agent. You help manage their daily workflow by connecting to Gmail, Google Calendar, Google Drive, Lofty CRM, and MLS/Realtor.ca.
 
 Your capabilities:
 - EMAIL: Search, read, draft, and send emails to clients and leads via Gmail
@@ -47,11 +49,29 @@ Guidelines:
 """
 
 
-def _build_system_prompt() -> str:
+def _build_system_prompt() -> list:
+    """Two blocks: the frozen prompt, then the clock.
+
+    The tools plus this static prompt are ~9k tokens that used to be re-sent at
+    full price on every call, and the tool loop makes up to 10 calls per
+    message. The breakpoint below caches tools + prompt together (tools render
+    first, so one marker on the last cached system block covers both). The time
+    has to sit AFTER the marker: it changes every minute, and any byte that
+    changes inside the cached prefix throws the whole cache away.
+    """
     now = datetime.now(ZoneInfo("America/Toronto"))
-    return SYSTEM_PROMPT_TEMPLATE.format(
-        current_datetime=now.strftime("%A, %B %d, %Y at %I:%M %p ET")
-    )
+    return [
+        {
+            "type": "text",
+            "text": SYSTEM_PROMPT_STATIC,
+            "cache_control": {"type": "ephemeral"},
+        },
+        {
+            "type": "text",
+            "text": "CURRENT DATE AND TIME: "
+                    + now.strftime("%A, %B %d, %Y at %I:%M %p ET"),
+        },
+    ]
 
 
 _active_sessions: dict[str, list] = defaultdict(list)
@@ -90,6 +110,19 @@ async def chat_stream(message: str, conversation_id: str, is_new: bool = False):
             system=system_prompt,
             tools=tools,
             messages=messages,
+        )
+
+        # Cache accounting, so a silent cache miss shows up in the journal
+        # instead of quietly tripling the bill. cache_read should be ~9k on
+        # every call after the first; if it sits at 0, something in the prefix
+        # is changing between requests.
+        u = response.usage
+        print(
+            f"[usage] conv={conversation_id[:8]} iter={iteration} "
+            f"in={u.input_tokens} out={u.output_tokens} "
+            f"cache_write={getattr(u, 'cache_creation_input_tokens', 0)} "
+            f"cache_read={getattr(u, 'cache_read_input_tokens', 0)}",
+            flush=True,
         )
 
         has_tool_use = False
