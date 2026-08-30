@@ -59,7 +59,13 @@ TOOLS = [
             "properties": {
                 "mls_numbers": {
                     "type": "array", "items": {"type": "string"},
-                    "description": "One or more MLS numbers, e.g. ['40854976'] or ['X13520662']",
+                    "description": (
+                        "One or more MLS numbers, exactly as the agent gave them. The shape is "
+                        "eight digits like 40123456, or a letter then seven digits like X1234567. "
+                        "Those two are shape examples only and are not real listings - never pass "
+                        "them through, and never reuse an MLS number from an earlier chat. If you "
+                        "do not have one, ask him for it."
+                    ),
                 },
             },
             "required": ["mls_numbers"],

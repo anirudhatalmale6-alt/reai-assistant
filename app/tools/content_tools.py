@@ -29,9 +29,13 @@ TOOLS = [
             "properties": {
                 "mls_number": {
                     "type": "string",
-                    "description": ("MLS number, e.g. 40854807. Fills in the address, price, "
-                                    "bed/bath/sqft and a real listing photo automatically. "
-                                    "Anything you pass explicitly overrides what is pulled in."),
+                    "description": ("MLS number, exactly as the agent gave it - eight digits, "
+                                    "shaped like 40123456, which is a shape example and not a "
+                                    "real listing. Never invent one and never reuse one from an "
+                                    "earlier chat; ask him if you do not have it. Fills in the "
+                                    "address, price, bed/bath/sqft and a real listing photo "
+                                    "automatically. Anything you pass explicitly overrides what "
+                                    "is pulled in."),
                     "default": "",
                 },
                 "photo_index": {
