@@ -429,8 +429,14 @@ def _layout_stack(size: tuple, d: dict, brand: dict) -> Image.Image:
     pad = round(56 * scale)
 
     if d.get("badge"):
-        _chip(draw, (pad, pad), d["badge"].upper(), font("sans", round(26 * scale), 800),
-              accent, _rgb(brand["primary"]), (round(30 * scale), round(14 * scale)))
+        # Top RIGHT, not left. The board burns the listing brokerage's watermark
+        # into the top-left of every photo it serves, so a badge there lands on
+        # top of it and both come out looking like a mistake.
+        chip_f = font("sans", round(26 * scale), 800)
+        chip_pad = (round(30 * scale), round(14 * scale))
+        chip_w = _text_w(draw, d["badge"].upper(), chip_f) + chip_pad[0] * 2
+        _chip(draw, (w - pad - chip_w, pad), d["badge"].upper(), chip_f,
+              accent, _rgb(brand["primary"]), chip_pad)
 
     # Headline sits over the bottom of the photo
     if d.get("headline"):
@@ -549,8 +555,12 @@ def _layout_flyer(size: tuple, d: dict, brand: dict) -> Image.Image:
     pad = round(70 * scale)
 
     if d.get("badge"):
-        _chip(draw, (pad, pad), d["badge"].upper(), font("sans", round(28 * scale), 800),
-              accent, primary, (round(30 * scale), round(14 * scale)))
+        # Top right, clear of the board's watermark - see _layout_stack.
+        chip_f = font("sans", round(28 * scale), 800)
+        chip_pad = (round(30 * scale), round(14 * scale))
+        chip_w = _text_w(draw, d["badge"].upper(), chip_f) + chip_pad[0] * 2
+        _chip(draw, (w - pad - chip_w, pad), d["badge"].upper(), chip_f,
+              accent, primary, chip_pad)
 
     if d.get("headline"):
         fnt, lines = _fit_headline(draw, d["headline"], "display", 700, w - pad * 2, 2,
