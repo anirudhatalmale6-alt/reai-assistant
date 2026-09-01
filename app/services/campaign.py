@@ -256,10 +256,13 @@ def prepare_deal_of_the_week(subject: str, headline: str, paragraphs: list[str],
                              preheader: str = "", stages: list[str] | None = None,
                              sources: list[str] | None = None, tags: list[str] | None = None,
                              owner: str | None = None, exclude_stages: list[str] | None = None,
-                             cities: list[str] | None = None, limit: int | None = None) -> dict:
+                             cities: list[str] | None = None,
+                             lead_types: list[str] | None = None,
+                             limit: int | None = None) -> dict:
     """Build the email and pick the audience in one step, ready for review."""
     picked = segments.select(stages=stages, sources=sources, tags=tags, owner=owner,
-                             exclude_stages=exclude_stages, cities=cities, limit=limit)
+                             exclude_stages=exclude_stages, cities=cities,
+                             lead_types=lead_types, limit=limit)
     email = build_email(subject=subject, headline=headline, paragraphs=paragraphs,
                         price=price, address=address, features=features,
                         bullets=bullets, bullets_title=bullets_title, closing=closing,

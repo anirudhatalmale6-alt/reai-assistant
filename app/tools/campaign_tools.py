@@ -12,6 +12,8 @@ SEGMENT_FIELDS = {
               "description": "Only contacts assigned to this agent, e.g. 'Agostino Calandrino'. Leave empty to include the whole team - the other agents are on Agostino's team and he earns commission on their closed deals, so team-wide sends are intended. Only set this when he explicitly asks for just his own."},
     "exclude_stages": {"type": "array", "items": {"type": "string"},
                        "description": "Stages to leave out, e.g. ['Dead Leads', 'AGENTS']"},
+    "lead_types": {"type": "array", "items": {"type": "string"},
+                   "description": "Only these kinds of contact: 'buyer', 'renter' or 'agent'. Lofty stores these as bare numbers with no labels; the mapping was worked out from Agostino's own data and confirmed by him. Use 'buyer' when a listing email should skip renters and other agents."},
     "limit": {"type": "integer", "description": "Cap the recipient count (useful for a first test send)"},
 }
 
@@ -179,7 +181,8 @@ def _count(params: dict) -> dict:
     picked = segments.select(
         stages=params.get("stages"), sources=params.get("sources"), tags=params.get("tags"),
         cities=params.get("cities"), owner=params.get("owner"),
-        exclude_stages=params.get("exclude_stages"), limit=params.get("limit"),
+        exclude_stages=params.get("exclude_stages"),
+        lead_types=params.get("lead_types"), limit=params.get("limit"),
     )
     return {"recipients": picked["count"], "examples": picked["sample"],
             "warnings": picked["warnings"],
@@ -197,7 +200,8 @@ def _prepare(params: dict) -> dict:
         image_url=params.get("image_url", ""), preheader=params.get("preheader", ""),
         stages=params.get("stages"), sources=params.get("sources"), tags=params.get("tags"),
         cities=params.get("cities"), owner=params.get("owner"),
-        exclude_stages=params.get("exclude_stages"), limit=params.get("limit"),
+        exclude_stages=params.get("exclude_stages"),
+        lead_types=params.get("lead_types"), limit=params.get("limit"),
     )
 
 

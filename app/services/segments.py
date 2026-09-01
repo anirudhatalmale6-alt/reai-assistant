@@ -192,14 +192,25 @@ def inventory(refresh: bool = False) -> dict:
     }
 
 
+#: Lofty stores lead type as a bare number and exposes no endpoint that names
+#: them. Worked out from Agostino's own data (2026-09-01) by cross-tabulating
+#: leadTypes against stage, source and buyingTimeFrame, then confirmed by him:
+#: type 5 sits almost entirely in the "Renters with Email/Form" stages and
+#: type 7 in "AGENTS"/"Realtors", and he named a type 2 contact as a buyer.
+LEAD_TYPES = {"buyer": "2", "renter": "5", "agent": "7"}
+
+
 def select(stages: list[str] | None = None, sources: list[str] | None = None,
            tags: list[str] | None = None, owner: str | None = None,
            exclude_stages: list[str] | None = None, cities: list[str] | None = None,
-           limit: int | None = None) -> dict:
+           lead_types: list[str] | None = None, limit: int | None = None) -> dict:
     """Pick recipients. Non-emailable contacts can never be included.
 
     Filters are OR within a category and AND across categories, which is how
     people describe segments out loud ("nurture or warm, from open houses").
+
+    `lead_types` accepts either the names in LEAD_TYPES or the raw numbers, so
+    "buyers in warm and new leads" is one call.
     """
     index = load_index()
     lower = lambda values: {v.strip().lower() for v in values or []}  # noqa: E731
@@ -207,6 +218,7 @@ def select(stages: list[str] | None = None, sources: list[str] | None = None,
     want_tags, want_cities = lower(tags), lower(cities)
     skip_stages = lower(exclude_stages)
     want_owner = (owner or "").strip().lower()
+    want_types = {LEAD_TYPES.get(t, t) for t in lower(lead_types)}
 
     chosen = []
     for contact in index["contacts"]:
@@ -223,6 +235,8 @@ def select(stages: list[str] | None = None, sources: list[str] | None = None,
         if want_tags and not ({t.lower() for t in contact["tags"]} & want_tags):
             continue
         if want_owner and want_owner not in contact["owner"].lower():
+            continue
+        if want_types and not (set(contact.get("types") or []) & want_types):
             continue
         chosen.append(contact)
 
