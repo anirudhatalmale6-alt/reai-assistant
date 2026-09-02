@@ -93,9 +93,13 @@ def geocode(address: str) -> dict | None:
     if not any(w in low for w in ("ontario", " on,", " on ", "canada")):
         query = f"{text}, Hamilton, Ontario, Canada"
 
+    # Cache entries are versioned: an older entry predates the precision check
+    # below and silently reintroduces the bug it exists to catch.
+    key = f"v2|{query}"
+
     with _lock:
         cache = _load_cache()
-        hit = cache.get(query)
+        hit = cache.get(key)
         if hit:
             return {**hit, "input": text}
 
@@ -103,7 +107,8 @@ def geocode(address: str) -> dict | None:
         try:
             resp = requests.get(
                 NOMINATIM,
-                params={"format": "json", "limit": 1, "countrycodes": "ca", "q": query},
+                params={"format": "json", "limit": 1, "countrycodes": "ca",
+                        "addressdetails": 1, "q": query},
                 headers={"User-Agent": _UA},
                 timeout=20,
             )
@@ -114,12 +119,28 @@ def geocode(address: str) -> dict | None:
         if not rows:
             return None
 
+        row = rows[0]
+        parts = row.get("address") or {}
+        house = parts.get("house_number")
+        road = parts.get("road") or parts.get("pedestrian") or ""
+        town = (parts.get("city") or parts.get("town") or parts.get("village")
+                or parts.get("municipality") or "")
+
+        street = " ".join(x for x in (house, road) if x)
+        short = ", ".join(x for x in (street, town) if x)
+        if not street:
+            short = ", ".join(p.strip() for p in row.get("display_name", query).split(",")[:2])
+
         found = {
-            "lat": float(rows[0]["lat"]),
-            "lon": float(rows[0]["lon"]),
-            "label": rows[0].get("display_name", query),
+            "lat": float(row["lat"]),
+            "lon": float(row["lon"]),
+            "label": row.get("display_name", query),
+            "short": short,
+            # No house number means it landed on the street, not the building.
+            # The agent is driving to this - he needs to be told, not reassured.
+            "precise": bool(house),
         }
-        cache[query] = found
+        cache[key] = found
         _save_cache(cache)
         return {**found, "input": text}
 
@@ -276,12 +297,20 @@ def plan(home: str, addresses: list[str], start: str = "17:00",
         stops.append({
             "position": idx + 1,
             "address": points[point_i]["input"],
-            "matched": points[point_i]["label"],
+            "matched": points[point_i].get("short") or points[point_i]["label"],
+            "precise": points[point_i].get("precise", True),
             "book_at": hhmm(cursor),
             "drive_minutes": int(round(drive)),
             "drive_km": round(dist[prev][point_i] / 1000, 1),
             "from": "your starting point" if idx == 0 else f"stop {idx}",
         })
+
+    vague = [s["address"] for s in stops if not s["precise"]]
+    if vague:
+        warnings.insert(0, "Couldn't pin the exact building for "
+                        + ", ".join(vague)
+                        + " - it used the street instead, so the times either side are rough. "
+                          "Worth checking that one before you drive it.")
 
     home_drive = dur[order[-1]][0] / 60
     total_drive = _loop_cost(tuple(order), dur) / 60
