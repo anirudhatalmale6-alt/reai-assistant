@@ -228,17 +228,36 @@ function render(d) {
   if (d.long_run)
     html += `<p class="note">This run leaves town, so Maps may put you on the 407.
              Use the second link if you'd rather not pay the toll.</p>`;
-  if (d.qr)
+  // A QR is for getting the route off a laptop and onto a phone. On the phone
+  // itself it is pointless - you cannot scan the screen you are holding - so
+  // there it becomes a share button instead.
+  const onPhone = window.matchMedia('(max-width: 700px)').matches;
+  if (d.qr && !onPhone)
     html += `<div class="card qr"><div class="addr">Send it to your phone</div>
       <p class="note" style="margin-top:4px">Point your phone camera at this and the whole
       route opens in Maps. No copying links.</p>
       <img src="${esc(d.qr)}" alt="QR code for the route" width="168" height="168"></div>`;
+  else if (d.maps_url)
+    html += `<button class="go share" id="share" data-url="${esc(d.maps_url)}"
+               style="margin-top:12px">Share or copy the route link</button>`;
   html += `<p class="note">Book them in Supra at the times above.${
       d.traffic_note ? ' ' + esc(d.traffic_note) : ''}${
       d.exact ? ' Every possible order was checked - this is the shortest one.'
               : ' With this many stops it uses a very close approximation rather than checking every order.'}</p>`;
 
   show(html);
+
+  const share = $('share');
+  if (share) share.addEventListener('click', async () => {
+    const url = share.dataset.url;
+    try {
+      if (navigator.share) return await navigator.share({title: 'Showing route', url});
+      await navigator.clipboard.writeText(url);
+      share.textContent = 'Link copied';
+    } catch (e) {
+      // A cancelled share sheet lands here too, which is not worth shouting about.
+    }
+  });
 }
 </script>
 </body>
