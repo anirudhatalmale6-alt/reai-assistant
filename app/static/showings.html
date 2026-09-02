@@ -102,6 +102,10 @@
         <label for="brk">Coffee break</label>
         <select id="brk">
           <option value="0" selected>None</option>
+          <!-- A three-showing night is his agent's normal, and a break after
+               the last one is not a break. Without this, the option was
+               unusable on exactly the run he described. -->
+          <option value="2">15 min after the 2nd</option>
           <option value="3">15 min after the 3rd</option>
           <option value="4">15 min after the 4th</option>
         </select>
