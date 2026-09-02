@@ -25,6 +25,7 @@ from __future__ import annotations
 import itertools
 import json
 import math
+import re
 import threading
 import time
 import urllib.parse
@@ -76,26 +77,120 @@ def _throttle() -> None:
     _last_call = time.monotonic()
 
 
+#: Unit and suite numbers, which MLS and Supra put in front of the street
+#: number. "202-120 Duke St" is a different place to Nominatim than
+#: "120 Duke St", and "Unit 202, 120 Duke St" it cannot find at all.
+_UNIT_PATTERNS = [
+    r"^\s*(?:unit|suite|ste\.?|apt\.?|apartment|no\.?|#)\s*[A-Za-z]?\d+[A-Za-z]?\s*(?:[,\-–—]\s*|\s+)",
+    r"^\s*[A-Za-z]?\d+[A-Za-z]?\s*[\-–—]\s*(?=\d)",
+    r"\s*,?\s*(?:unit|suite|ste\.?|apt\.?|apartment)\s*[A-Za-z]?\d+[A-Za-z]?\s*$",
+    r"\s*#\s*[A-Za-z]?\d+[A-Za-z]?\s*$",
+]
+
+_POSTAL = re.compile(r"[A-Za-z]\d[A-Za-z]\s*\d[A-Za-z]\d")
+_HOUSE_NO = re.compile(r"^\s*(\d+)")
+
+
+def strip_unit(text: str) -> str:
+    """Drop a unit or suite number, keeping the street address underneath."""
+    out = text
+    for pattern in _UNIT_PATTERNS:
+        out = re.sub(pattern, "", out, flags=re.IGNORECASE)
+    return " ".join(out.split()).strip(" ,-")
+
+
+def _candidates(text: str) -> list[str]:
+    """The forms of an address worth asking Nominatim about, best first.
+
+    Two rules, both learned from addresses that failed in his agent's hands:
+
+    Only assume Hamilton when nothing else is named. The first version pinned
+    "Hamilton" onto everything without a province, which quietly broke every
+    Burlington and Grimsby listing - Nominatim will not resolve "Guelph Line,
+    Burlington, Hamilton" and returned nothing at all. A comma means the agent
+    has already told us where it is, so we say Ontario and leave it alone.
+
+    Always try the unit-stripped form too, because "Unit 202, 120 Duke St"
+    reads as having a city when it does not.
+
+    As typed comes first, stripped second. "2-4 King St W" is a real address
+    range rather than unit 2, and stripping it would send the agent next door;
+    asking as typed first means a genuine range wins and only an address that
+    fails or lands on the street falls through to the stripped form.
+    """
+    forms, seen = [], set()
+    for base in (text, strip_unit(text)):
+        if not base or base.lower() in seen:
+            continue
+        seen.add(base.lower())
+        low = base.lower()
+        if _POSTAL.search(base) or any(w in low for w in ("ontario", " on,", " on ", "canada")):
+            forms.append(base)
+        elif "," in base:
+            forms.append(f"{base}, Ontario, Canada")
+        else:
+            forms.append(f"{base}, Hamilton, Ontario, Canada")
+    return forms
+
+
+def _ask(query: str) -> dict | None:
+    _throttle()
+    try:
+        resp = requests.get(
+            NOMINATIM,
+            params={"format": "json", "limit": 1, "countrycodes": "ca",
+                    "addressdetails": 1, "q": query},
+            headers={"User-Agent": _UA},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        rows = resp.json()
+    except (requests.RequestException, ValueError):
+        return None
+    if not rows:
+        return None
+
+    row = rows[0]
+    parts = row.get("address") or {}
+    house = parts.get("house_number")
+    road = parts.get("road") or parts.get("pedestrian") or ""
+    town = (parts.get("city") or parts.get("town") or parts.get("village")
+            or parts.get("municipality") or "")
+
+    street = " ".join(x for x in (house, road) if x)
+    short = ", ".join(x for x in (street, town) if x)
+    if not street:
+        short = ", ".join(p.strip() for p in row.get("display_name", query).split(",")[:2])
+
+    return {
+        "lat": float(row["lat"]),
+        "lon": float(row["lon"]),
+        "label": row.get("display_name", query),
+        "short": short,
+        "house": house or "",
+        # No house number means it landed on the street, not the building.
+        # The agent is driving to this - he needs to be told, not reassured.
+        "precise": bool(house),
+    }
+
+
 def geocode(address: str) -> dict | None:
     """Turn a typed address into coordinates, or None if it cannot be found.
 
-    Agents type these on a phone between appointments, so the address arrives
-    abbreviated and without a city about half the time. Hamilton, Ontario is
-    appended when no province is mentioned - guessing his own market is far
-    better than handing back a pin in Hamilton, New Zealand.
+    Tries each candidate form and keeps the first that lands on the right
+    building, falling back to the best near-miss so one awkward address does
+    not take the whole route down.
     """
     text = " ".join((address or "").split())
     if not text:
         return None
 
-    query = text
-    low = text.lower()
-    if not any(w in low for w in ("ontario", " on,", " on ", "canada")):
-        query = f"{text}, Hamilton, Ontario, Canada"
+    wanted = _HOUSE_NO.match(strip_unit(text))
+    wanted_no = wanted.group(1) if wanted else None
 
-    # Cache entries are versioned: an older entry predates the precision check
-    # below and silently reintroduces the bug it exists to catch.
-    key = f"v2|{query}"
+    # v3: v2 entries predate unit stripping and the wrong-building check, so
+    # serving them back would reintroduce exactly what this version fixes.
+    key = f"v3|{text.lower()}"
 
     with _lock:
         cache = _load_cache()
@@ -103,46 +198,28 @@ def geocode(address: str) -> dict | None:
         if hit:
             return {**hit, "input": text}
 
-        _throttle()
-        try:
-            resp = requests.get(
-                NOMINATIM,
-                params={"format": "json", "limit": 1, "countrycodes": "ca",
-                        "addressdetails": 1, "q": query},
-                headers={"User-Agent": _UA},
-                timeout=20,
-            )
-            resp.raise_for_status()
-            rows = resp.json()
-        except (requests.RequestException, ValueError):
+        best = None
+        for query in _candidates(text):
+            found = _ask(query)
+            if not found:
+                continue
+            # Nominatim will happily answer 1051 Upper James with number 2741.
+            # A house number that is not the one asked for is a wrong building,
+            # which is worse than an honest "somewhere on this street".
+            if found["house"] and wanted_no and found["house"] != wanted_no:
+                found = {**found, "precise": False,
+                         "short": f"{found['short']} (asked for number {wanted_no})"}
+            if found["precise"]:
+                best = found
+                break
+            best = best or found
+
+        if not best:
             return None
-        if not rows:
-            return None
 
-        row = rows[0]
-        parts = row.get("address") or {}
-        house = parts.get("house_number")
-        road = parts.get("road") or parts.get("pedestrian") or ""
-        town = (parts.get("city") or parts.get("town") or parts.get("village")
-                or parts.get("municipality") or "")
-
-        street = " ".join(x for x in (house, road) if x)
-        short = ", ".join(x for x in (street, town) if x)
-        if not street:
-            short = ", ".join(p.strip() for p in row.get("display_name", query).split(",")[:2])
-
-        found = {
-            "lat": float(row["lat"]),
-            "lon": float(row["lon"]),
-            "label": row.get("display_name", query),
-            "short": short,
-            # No house number means it landed on the street, not the building.
-            # The agent is driving to this - he needs to be told, not reassured.
-            "precise": bool(house),
-        }
-        cache[key] = found
+        cache[key] = best
         _save_cache(cache)
-        return {**found, "input": text}
+        return {**best, "input": text}
 
 
 def drive_matrix(points: list[dict]) -> tuple[list[list[float]], list[list[float]]] | None:
