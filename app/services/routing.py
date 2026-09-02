@@ -129,7 +129,13 @@ def _candidates(text: str) -> list[str]:
         elif "," in base:
             forms.append(f"{base}, Ontario, Canada")
         else:
+            # Hamilton first, so a street that exists in his own city wins.
+            # Only when it does not do we widen to the province - that is what
+            # rescues "1234 Guelph Line" typed with no city at all. The matched
+            # line shown to the agent names the town, so a hit in Burlington
+            # reads as Burlington rather than pretending to be local.
             forms.append(f"{base}, Hamilton, Ontario, Canada")
+            forms.append(f"{base}, Ontario, Canada")
     return forms
 
 
