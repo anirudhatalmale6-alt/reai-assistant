@@ -22,6 +22,8 @@ drives badly.
 
 from __future__ import annotations
 
+import base64
+import io
 import itertools
 import json
 import math
@@ -37,6 +39,7 @@ from app.config import settings
 
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
 OSRM_TABLE = "https://router.project-osrm.org/table/v1/driving/"
+OVERPASS = "https://overpass-api.de/api/interpreter"
 
 #: Nominatim's usage policy asks for a real identifying User-Agent and no more
 #: than one request a second. Both are honoured below - this is a free service
@@ -262,6 +265,62 @@ def drive_matrix(points: list[dict]) -> tuple[list[list[float]], list[list[float
     return durations, distances
 
 
+def find_coffee_stop(lat: float, lon: float, radius: int = 3000) -> dict | None:
+    """Somewhere real to stop between two showings.
+
+    His agent asked for a break to be suggested with an address rather than
+    just a gap in the schedule, which is fair - "take fifteen minutes" is not
+    much use at 7pm in an industrial park you have never been to. Searched
+    around the midpoint of the two showings so it is roughly on the way, and a
+    sit-down cafe wins over a drive-through when both are close.
+    """
+    query = (f'[out:json][timeout:25];node(around:{radius},{lat},{lon})'
+             f'[amenity~"^(cafe|fast_food)$"][name];out 40;')
+    try:
+        resp = requests.post(OVERPASS, data={"data": query},
+                             headers={"User-Agent": _UA}, timeout=40)
+        resp.raise_for_status()
+        elements = resp.json().get("elements") or []
+    except (requests.RequestException, ValueError):
+        return None  # A missing suggestion is a smaller problem than no route.
+
+    def score(node):
+        tags = node.get("tags") or {}
+        away = math.hypot(node.get("lat", 0) - lat, node.get("lon", 0) - lon)
+        return (0 if tags.get("amenity") == "cafe" else 1, away)
+
+    named = [n for n in elements if (n.get("tags") or {}).get("name")]
+    if not named:
+        return None
+
+    best = min(named, key=score)
+    tags = best["tags"]
+    street = " ".join(x for x in (tags.get("addr:housenumber"), tags.get("addr:street")) if x)
+    return {
+        "name": tags["name"],
+        "address": street,
+        "maps_url": "https://www.google.com/maps/search/?" + urllib.parse.urlencode(
+            {"api": "1", "query": f"{best['lat']},{best['lon']}"}),
+    }
+
+
+def qr_svg(url: str) -> str:
+    """A QR of the route link, so the phone gets it without a copy and paste.
+
+    He works this out on a laptop and drives with a phone, and asked for the
+    hand-off to be one step. A QR needs no account, no SMS gateway and no
+    typing - he points the camera at it and Maps opens.
+    """
+    try:
+        import segno
+    except ImportError:
+        return ""
+    buf = io.BytesIO()
+    segno.make(url, error="m").save(buf, kind="svg", scale=4, border=2,
+                                    dark="#12263A", light="#ffffff", xmldecl=False)
+    return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def _loop_cost(order: tuple[int, ...], dur: list[list[float]]) -> float:
     """Total driving for home -> stops in this order -> home. Home is index 0."""
     total = dur[0][order[0]]
@@ -407,10 +466,13 @@ def plan(home: str, addresses: list[str], start: str = "17:00",
                     f"so book them {showing_minutes + gap_drive} minutes apart, "
                     f"not {showing_minutes}.")
         take_break = bool(break_after) and (idx + 1) == break_after and idx + 1 < len(order)
-        cursor_break = 0
+        cursor_break, coffee = 0, None
         if take_break:
             cursor_break = cursor + showing_minutes
             owed_break = break_minutes
+            here, nxt = points[point_i], points[order[idx + 1]]
+            coffee = find_coffee_stop((here["lat"] + nxt["lat"]) / 2,
+                                      (here["lon"] + nxt["lon"]) / 2)
         stops.append({
             "position": idx + 1,
             "address": points[point_i]["input"],
@@ -419,6 +481,7 @@ def plan(home: str, addresses: list[str], start: str = "17:00",
             "break_after": take_break,
             "break_at": hhmm(cursor_break) if take_break else "",
             "break_minutes": break_minutes if take_break else 0,
+            "break_place": coffee,
             "book_at": hhmm(cursor),
             "drive_minutes": int(round(drive)),
             "drive_km": round(dist[prev][point_i] / 1000, 1),
@@ -453,8 +516,14 @@ def plan(home: str, addresses: list[str], start: str = "17:00",
             "normal": "Drive times include a small allowance for normal traffic.",
             "light": "Drive times assume a clear road.",
         }.get(traffic_key, ""),
+        "rush_alert": traffic_key == "rush",
+        "rush_advice": (f"Rush hour. Book {showing_minutes + 15} minutes apart rather than "
+                        f"{showing_minutes} if you can - the drive times below already "
+                        f"allow for traffic, but it only takes one bad stretch of the QEW.")
+                       if traffic_key == "rush" else "",
         "maps_url": maps_link(points, order),
         "maps_url_no_tolls": maps_link(points, order, avoid_tolls=True),
+        "qr": qr_svg(maps_link(points, order)),
         # The 407 is the expensive one and it only ever appears on a run that
         # leaves town, which is exactly when his agent hit it.
         "long_run": total_drive > 45,

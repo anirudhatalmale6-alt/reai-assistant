@@ -42,6 +42,10 @@
           white-space:nowrap; padding-left:8px; }
   .banner { padding:12px 14px; border-radius:7px; font-size:14px; margin-bottom:14px; }
   .warn { background:#fff7e6; border:1px solid #f0d9a8; color:#7a5a12; }
+  .rush { background:#c0392b; border:1px solid #a93226; color:#fff; font-weight:700; }
+  .rush span { display:block; font-weight:400; margin-top:4px; font-size:13.5px; opacity:.95; }
+  .qr { text-align:center; margin-top:14px; }
+  .qr img { margin-top:10px; }
   .bad  { background:#fdecec; border:1px solid #f3c3c3; color:#8a2020; }
   .summary { display:flex; justify-content:space-between; gap:10px; font-size:14px;
              color:var(--muted); border-top:1px solid var(--line); padding-top:13px; margin-top:4px; }
@@ -171,6 +175,8 @@ function render(d) {
   }
 
   let html = '';
+  if (d.rush_alert)
+    html += `<div class="banner rush">Rush hour<span>${esc(d.rush_advice)}</span></div>`;
   if (d.not_found && d.not_found.length) html += notFound(d.not_found);
   (d.warnings || []).forEach(w => { html += `<div class="banner warn">${esc(w)}</div>`; });
 
@@ -188,11 +194,16 @@ function render(d) {
       ${matched}
       <div class="meta">${s.drive_minutes} min drive from ${esc(s.from)} · ${s.drive_km} km</div></div>
       <div class="time">${esc(s.book_at)}</div></div>`;
-    if (s.break_after)
+    if (s.break_after) {
+      const place = s.break_place
+        ? `<div class="meta"><a href="${esc(s.break_place.maps_url)}" target="_blank"
+             rel="noopener">${esc(s.break_place.name)}</a>${
+             s.break_place.address ? ' · ' + esc(s.break_place.address) : ''} - roughly on the way</div>`
+        : `<div class="meta">coffee, food or a washroom stop before the next one</div>`;
       html += `<div class="stop"><div class="num brk">☕</div>
-        <div><div class="addr">${s.break_minutes} minute break</div>
-        <div class="meta">coffee, food or a washroom stop before the next one</div></div>
+        <div><div class="addr">${s.break_minutes} minute break</div>${place}</div>
         <div class="time">${esc(s.break_at)}</div></div>`;
+    }
   });
 
   html += `<div class="stop"><div class="num">⌂</div>
@@ -213,6 +224,11 @@ function render(d) {
   if (d.long_run)
     html += `<p class="note">This run leaves town, so Maps may put you on the 407.
              Use the second link if you'd rather not pay the toll.</p>`;
+  if (d.qr)
+    html += `<div class="card qr"><div class="addr">Send it to your phone</div>
+      <p class="note" style="margin-top:4px">Point your phone camera at this and the whole
+      route opens in Maps. No copying links.</p>
+      <img src="${esc(d.qr)}" alt="QR code for the route" width="168" height="168"></div>`;
   html += `<p class="note">Book them in Supra at the times above.${
       d.traffic_note ? ' ' + esc(d.traffic_note) : ''}${
       d.exact ? ' Every possible order was checked - this is the shortest one.'
