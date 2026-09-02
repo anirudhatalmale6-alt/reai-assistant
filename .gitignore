@@ -10,6 +10,7 @@ data/brand.json
 data/brand/
 data/exports/
 data/crm_index.json
+data/geocache.json
 data/lofty_segment_audit.json
 app/static/brand-logo.png
 

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12263A">
+<title>Showing Route - Owl House Realty</title>
+<style>
+  :root { --navy:#12263A; --gold:#C8A24A; --line:#e2e5ea; --muted:#6b7280; }
+  * { box-sizing:border-box; -webkit-text-size-adjust:100%; }
+  body { margin:0; background:#f4f5f7; color:#1f2430;
+         font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; }
+  .wrap { max-width:620px; margin:0 auto; padding:20px 16px 56px; }
+  header { text-align:center; margin-bottom:22px; }
+  h1 { margin:0 0 4px; font:600 21px/1.3 Georgia,serif; color:var(--navy); }
+  header p { margin:0; color:var(--muted); font-size:14px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:18px 16px; margin-bottom:16px; }
+  label { display:block; font-size:13px; font-weight:600; color:var(--navy);
+          margin-bottom:6px; letter-spacing:.02em; }
+  .hint { font-weight:400; color:var(--muted); font-size:12px; }
+  input, textarea, select {
+    width:100%; padding:12px 12px; border:1px solid #cfd4dc; border-radius:7px;
+    font:16px/1.45 inherit; background:#fff; color:inherit; }
+  textarea { min-height:132px; resize:vertical; }
+  input:focus, textarea:focus, select:focus { outline:2px solid var(--gold); outline-offset:-1px; border-color:var(--gold); }
+  .row { display:flex; gap:12px; }
+  .row > div { flex:1; min-width:0; }
+  .field { margin-bottom:16px; }
+  .field:last-child { margin-bottom:0; }
+  button.go { width:100%; padding:15px; border:0; border-radius:7px; background:var(--gold);
+              color:var(--navy); font:700 16px/1 inherit; cursor:pointer; }
+  button.go:disabled { opacity:.55; cursor:default; }
+  .stop { display:flex; gap:13px; padding:14px 0; border-top:1px solid var(--line); }
+  .stop:first-child { border-top:0; padding-top:2px; }
+  .num { flex:0 0 30px; height:30px; border-radius:50%; background:var(--navy); color:#fff;
+         font:700 14px/30px inherit; text-align:center; }
+  .stop .addr { font-weight:600; color:var(--navy); overflow-wrap:anywhere; }
+  .stop .meta { font-size:13px; color:var(--muted); margin-top:3px; }
+  .time { margin-left:auto; text-align:right; font-weight:700; color:var(--navy);
+          white-space:nowrap; padding-left:8px; }
+  .banner { padding:12px 14px; border-radius:7px; font-size:14px; margin-bottom:14px; }
+  .warn { background:#fff7e6; border:1px solid #f0d9a8; color:#7a5a12; }
+  .bad  { background:#fdecec; border:1px solid #f3c3c3; color:#8a2020; }
+  .summary { display:flex; justify-content:space-between; gap:10px; font-size:14px;
+             color:var(--muted); border-top:1px solid var(--line); padding-top:13px; margin-top:4px; }
+  .summary b { color:var(--navy); display:block; font-size:16px; }
+  a.maps { display:block; text-align:center; padding:15px; border-radius:7px;
+           background:var(--navy); color:#fff; text-decoration:none; font-weight:700; }
+  .note { font-size:12.5px; color:var(--muted); margin:12px 2px 0; }
+  #out { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Showing Route</h1>
+    <p>Put the addresses in, get the order to book them in.</p>
+  </header>
+
+  <div class="card">
+    <div class="field">
+      <label for="home">Starting from <span class="hint">- usually home or the office</span></label>
+      <input id="home" placeholder="e.g. 497 Main St E, Hamilton" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="addrs">Showing addresses <span class="hint">- one per line, any order</span></label>
+      <textarea id="addrs" placeholder="120 Duke St&#10;27 Emperor Ave&#10;87 Monte Dr"></textarea>
+    </div>
+    <div class="row field">
+      <div>
+        <label for="start">First showing at</label>
+        <input id="start" type="time" value="17:00">
+      </div>
+      <div>
+        <label for="mins">Minutes each</label>
+        <select id="mins">
+          <option>15</option><option>20</option><option selected>30</option>
+          <option>45</option><option>60</option>
+        </select>
+      </div>
+    </div>
+    <button class="go" id="go">Work out the order</button>
+    <p class="note">Uses real driving times, not straight-line distance - which matters
+      going up and down the mountain.</p>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+$('go').addEventListener('click', async () => {
+  const home = $('home').value.trim();
+  const addresses = $('addrs').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const btn = $('go'), out = $('out');
+
+  if (!home)               return show(`<div class="banner bad">Enter the address you're starting from.</div>`);
+  if (addresses.length < 2) return show(`<div class="banner bad">Enter at least two showing addresses.</div>`);
+
+  btn.disabled = true;
+  btn.textContent = 'Looking up the addresses…';
+  out.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/showings/route', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        home, addresses,
+        start: $('start').value || '17:00',
+        showing_minutes: parseInt($('mins').value, 10) || 30
+      })
+    });
+    render(await res.json());
+  } catch (e) {
+    show(`<div class="banner bad">Couldn't reach the server. Check your signal and try again.</div>`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Work out the order';
+  }
+});
+
+function show(html) {
+  const out = $('out');
+  out.innerHTML = html;
+  out.style.display = 'block';
+  out.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function render(d) {
+  if (!d.ok) {
+    let html = `<div class="banner bad">${esc(d.error || 'Something went wrong.')}</div>`;
+    if (d.not_found && d.not_found.length)
+      html += `<div class="banner warn">Couldn't find: ${d.not_found.map(esc).join(', ')}.
+               Try adding the street type, like Duke St rather than Duke.</div>`;
+    return show(html);
+  }
+
+  let html = '';
+  if (d.not_found && d.not_found.length)
+    html += `<div class="banner warn">Left out, couldn't find them: ${d.not_found.map(esc).join(', ')}</div>`;
+  (d.warnings || []).forEach(w => { html += `<div class="banner warn">${esc(w)}</div>`; });
+
+  html += `<div class="card"><div class="stop"><div class="num">⚑</div>
+           <div><div class="addr">Leave from your starting point</div>
+           <div class="meta">to be at the first showing on time</div></div>
+           <div class="time">${esc(d.leave_at)}</div></div>`;
+
+  d.stops.forEach(s => {
+    html += `<div class="stop"><div class="num">${s.position}</div>
+      <div><div class="addr">${esc(s.address)}</div>
+      <div class="meta">${s.drive_minutes} min drive from ${esc(s.from)} · ${s.drive_km} km</div></div>
+      <div class="time">${esc(s.book_at)}</div></div>`;
+  });
+
+  html += `<div class="stop"><div class="num">⌂</div>
+      <div><div class="addr">Back to your starting point</div>
+      <div class="meta">${d.home_drive_minutes} min from the last showing</div></div>
+      <div class="time">${esc(d.home_at)}</div></div>`;
+
+  html += `<div class="summary">
+      <div>Total driving<b>${d.total_drive_minutes} min</b></div>
+      <div>Done showing<b>${esc(d.finish_at)}</b></div>
+      <div>Stops<b>${d.stops.length}</b></div>
+    </div></div>`;
+
+  html += `<a class="maps" href="${esc(d.maps_url)}" target="_blank" rel="noopener">
+             Open the whole route in Google Maps</a>`;
+  html += `<p class="note">Book them in Supra at the times above.${
+      d.exact ? ' Every possible order was checked - this is the shortest one.'
+              : ' With this many stops it uses a very close approximation rather than checking every order.'}</p>`;
+
+  show(html);
+}
+</script>
+</body>
+</html>

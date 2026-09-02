@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
-from app.routers import chat, auth, health, dashboard, uploads, exports, social_approval
+from app.routers import chat, auth, health, dashboard, uploads, exports, social_approval, showings
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -25,6 +25,12 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(uploads.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")
 app.include_router(social_approval.router, prefix="/api")
+app.include_router(showings.router, prefix="/api")
+
+
+@app.get("/showings")
+async def showings_page():
+    return FileResponse(str(STATIC_DIR / "showings.html"))
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
