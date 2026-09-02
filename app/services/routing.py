@@ -310,8 +310,26 @@ def _round_up(minutes: float, step: int = 15) -> int:
     return int(math.ceil(minutes / step) * step)
 
 
+#: OSRM returns free-flow driving times - the road empty. His agent drives
+#: these at 5pm. Without an allowance the schedule is optimistic exactly when
+#: it matters, and an agent who books 30 minutes apart on free-flow times is
+#: late to the second showing. These are allowances, not live traffic; live
+#: traffic needs a paid API and he has not asked for that expense.
+TRAFFIC = {"light": 1.0, "normal": 1.15, "rush": 1.45}
+RUSH_FROM, RUSH_TO = 15 * 60, 18 * 60 + 30
+
+
+def _traffic_factor(setting: str, clock: int) -> tuple[float, str]:
+    key = (setting or "auto").lower()
+    if key == "auto":
+        key = "rush" if RUSH_FROM <= clock < RUSH_TO else "normal"
+    return TRAFFIC.get(key, TRAFFIC["normal"]), key
+
+
 def plan(home: str, addresses: list[str], start: str = "17:00",
-         showing_minutes: int = 30, buffer_minutes: int = 5) -> dict:
+         showing_minutes: int = 30, buffer_minutes: int = 5,
+         traffic: str = "auto", break_after: int = 0,
+         break_minutes: int = 15) -> dict:
     """Build the whole schedule: order, drive times, booking times, warnings.
 
     `start` is when the first showing begins, so the agent's own departure time
@@ -349,13 +367,19 @@ def plan(home: str, addresses: list[str], start: str = "17:00",
         return {"ok": False, "error": "The mapping service didn't answer. Try again in a moment."}
     dur, dist = matrix
 
-    order, exact = best_order(dur)
-
     try:
         hh, mm = (int(x) for x in start.split(":")[:2])
         clock = hh * 60 + mm
     except (ValueError, TypeError):
         clock = 17 * 60
+
+    # Scaling every leg by the same factor cannot change which order is
+    # shortest, so this only moves the clock, never the route.
+    factor, traffic_key = _traffic_factor(traffic, clock)
+    if factor != 1.0:
+        dur = [[v * factor for v in row] for row in dur]
+
+    order, exact = best_order(dur)
 
     def hhmm(total: int) -> str:
         total %= 24 * 60
@@ -366,22 +390,35 @@ def plan(home: str, addresses: list[str], start: str = "17:00",
 
     leave_home = clock - _round_up(dur[0][order[0]] / 60 + buffer_minutes)
 
-    stops, warnings, cursor = [], [], clock
+    stops, warnings, cursor, owed_break = [], [], clock, 0
     for idx, point_i in enumerate(order):
         prev = 0 if idx == 0 else order[idx - 1]
         drive = dur[prev][point_i] / 60
         if idx > 0:
-            gap = _round_up(drive + buffer_minutes)
-            cursor += showing_minutes + gap
-            if gap > showing_minutes:
+            # The warning is about the drive alone. A break he asked for is not
+            # a problem to warn him about, so it moves the clock but is kept out
+            # of the comparison.
+            gap_drive = _round_up(drive + buffer_minutes)
+            cursor += showing_minutes + _round_up(drive + buffer_minutes + owed_break)
+            owed_break = 0
+            if gap_drive > showing_minutes:
                 warnings.append(
                     f"It's {int(round(drive))} minutes from stop {idx} to stop {idx + 1}, "
-                    f"so book them {showing_minutes + gap} minutes apart, not {showing_minutes}.")
+                    f"so book them {showing_minutes + gap_drive} minutes apart, "
+                    f"not {showing_minutes}.")
+        take_break = bool(break_after) and (idx + 1) == break_after and idx + 1 < len(order)
+        cursor_break = 0
+        if take_break:
+            cursor_break = cursor + showing_minutes
+            owed_break = break_minutes
         stops.append({
             "position": idx + 1,
             "address": points[point_i]["input"],
             "matched": points[point_i].get("short") or points[point_i]["label"],
             "precise": points[point_i].get("precise", True),
+            "break_after": take_break,
+            "break_at": hhmm(cursor_break) if take_break else "",
+            "break_minutes": break_minutes if take_break else 0,
             "book_at": hhmm(cursor),
             "drive_minutes": int(round(drive)),
             "drive_km": round(dist[prev][point_i] / 1000, 1),
@@ -409,19 +446,44 @@ def plan(home: str, addresses: list[str], start: str = "17:00",
         "total_drive_minutes": int(round(total_drive)),
         "warnings": warnings,
         "not_found": failed,
+        "traffic": traffic_key,
+        "traffic_note": {
+            "rush": "Drive times include a rush-hour allowance, so they're "
+                    "longer than an empty road.",
+            "normal": "Drive times include a small allowance for normal traffic.",
+            "light": "Drive times assume a clear road.",
+        }.get(traffic_key, ""),
         "maps_url": maps_link(points, order),
+        "maps_url_no_tolls": maps_link(points, order, avoid_tolls=True),
+        # The 407 is the expensive one and it only ever appears on a run that
+        # leaves town, which is exactly when his agent hit it.
+        "long_run": total_drive > 45,
     }
 
 
-def maps_link(points: list[dict], order: list[int]) -> str:
+def maps_link(points: list[dict], order: list[int], avoid_tolls: bool = False) -> str:
     """One Google Maps link with every stop already in order.
 
     Coordinates rather than the typed text: the agent has already seen which
     address each one matched, and a pin on the right building beats Google
     re-guessing a half-typed street name while he is driving.
+
+    Two flavours, deliberately. The documented `api=1` form has no way to say
+    "no toll roads", and on a Hamilton to Brampton run Maps happily sends him
+    up the 407, which is not a road anyone drives by accident twice. The older
+    `saddr`/`daddr` form still honours dirflg=t for that. It is undocumented,
+    so it is offered as a second link rather than swapped in for the one that
+    is already working on his agent's phone.
     """
     def pin(i: int) -> str:
         return f"{points[i]['lat']},{points[i]['lon']}"
+
+    if avoid_tolls:
+        daddr = pin(order[0])
+        if len(order) > 1:
+            daddr += "".join(f"+to:{pin(i)}" for i in order[1:])
+        return "https://www.google.com/maps?" + urllib.parse.urlencode(
+            {"saddr": pin(0), "daddr": daddr, "dirflg": "t"}, safe="+:,")
 
     params = {
         "api": "1",

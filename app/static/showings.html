@@ -48,6 +48,9 @@
   .summary b { color:var(--navy); display:block; font-size:16px; }
   a.maps { display:block; text-align:center; padding:15px; border-radius:7px;
            background:var(--navy); color:#fff; text-decoration:none; font-weight:700; }
+  a.maps.alt { background:#fff; color:var(--navy); border:1px solid var(--navy);
+               margin-top:10px; font-weight:600; }
+  .num.brk { background:#fff; border:1px dashed #c3c8d0; color:#6b7280; line-height:28px; }
   .note { font-size:12.5px; color:var(--muted); margin:12px 2px 0; }
   #out { display:none; }
 </style>
@@ -78,6 +81,25 @@
         <select id="mins">
           <option>15</option><option>20</option><option selected>30</option>
           <option>45</option><option>60</option>
+        </select>
+      </div>
+    </div>
+    <div class="row field">
+      <div>
+        <label for="traffic">Traffic</label>
+        <select id="traffic">
+          <option value="auto" selected>Work it out from the time</option>
+          <option value="rush">Rush hour</option>
+          <option value="normal">Normal</option>
+          <option value="light">Clear roads</option>
+        </select>
+      </div>
+      <div>
+        <label for="brk">Coffee break</label>
+        <select id="brk">
+          <option value="0" selected>None</option>
+          <option value="3">15 min after the 3rd</option>
+          <option value="4">15 min after the 4th</option>
         </select>
       </div>
     </div>
@@ -112,7 +134,9 @@ $('go').addEventListener('click', async () => {
       body: JSON.stringify({
         home, addresses,
         start: $('start').value || '17:00',
-        showing_minutes: parseInt($('mins').value, 10) || 30
+        showing_minutes: parseInt($('mins').value, 10) || 30,
+        traffic: $('traffic').value,
+        break_after: parseInt($('brk').value, 10) || 0
       })
     });
     render(await res.json());
@@ -124,6 +148,14 @@ $('go').addEventListener('click', async () => {
   }
 });
 
+// A postal code is what actually rescues these - some newer streets have no
+// house numbers in the free map data at all, and no amount of respelling the
+// street type will find them.
+function notFound(list) {
+  return `<div class="banner warn">Couldn't find: ${list.map(esc).join(', ')}.
+          Add the postal code to those ones - that nearly always finds them.</div>`;
+}
+
 function show(html) {
   const out = $('out');
   out.innerHTML = html;
@@ -134,15 +166,12 @@ function show(html) {
 function render(d) {
   if (!d.ok) {
     let html = `<div class="banner bad">${esc(d.error || 'Something went wrong.')}</div>`;
-    if (d.not_found && d.not_found.length)
-      html += `<div class="banner warn">Couldn't find: ${d.not_found.map(esc).join(', ')}.
-               Try adding the street type, like Duke St rather than Duke.</div>`;
+    if (d.not_found && d.not_found.length) html += notFound(d.not_found);
     return show(html);
   }
 
   let html = '';
-  if (d.not_found && d.not_found.length)
-    html += `<div class="banner warn">Left out, couldn't find them: ${d.not_found.map(esc).join(', ')}</div>`;
+  if (d.not_found && d.not_found.length) html += notFound(d.not_found);
   (d.warnings || []).forEach(w => { html += `<div class="banner warn">${esc(w)}</div>`; });
 
   html += `<div class="card"><div class="stop"><div class="num">⚑</div>
@@ -159,6 +188,11 @@ function render(d) {
       ${matched}
       <div class="meta">${s.drive_minutes} min drive from ${esc(s.from)} · ${s.drive_km} km</div></div>
       <div class="time">${esc(s.book_at)}</div></div>`;
+    if (s.break_after)
+      html += `<div class="stop"><div class="num brk">☕</div>
+        <div><div class="addr">${s.break_minutes} minute break</div>
+        <div class="meta">coffee, food or a washroom stop before the next one</div></div>
+        <div class="time">${esc(s.break_at)}</div></div>`;
   });
 
   html += `<div class="stop"><div class="num">⌂</div>
@@ -174,7 +208,13 @@ function render(d) {
 
   html += `<a class="maps" href="${esc(d.maps_url)}" target="_blank" rel="noopener">
              Open the whole route in Google Maps</a>`;
+  html += `<a class="maps alt" href="${esc(d.maps_url_no_tolls)}" target="_blank" rel="noopener">
+             Same route, avoiding toll roads${d.long_run ? ' (the 407)' : ''}</a>`;
+  if (d.long_run)
+    html += `<p class="note">This run leaves town, so Maps may put you on the 407.
+             Use the second link if you'd rather not pay the toll.</p>`;
   html += `<p class="note">Book them in Supra at the times above.${
+      d.traffic_note ? ' ' + esc(d.traffic_note) : ''}${
       d.exact ? ' Every possible order was checked - this is the shortest one.'
               : ' With this many stops it uses a very close approximation rather than checking every order.'}</p>`;
 
