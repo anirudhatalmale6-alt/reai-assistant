@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     META_APP_SECRET: str = ""
     META_REDIRECT_URI: str = "http://localhost/"
     APP_SECRET_KEY: str = "change-me-in-production"
+    # Guards /mcp and /gpt, which Caddy's basic auth cannot cover - a connector
+    # form has nowhere to answer a browser password prompt. Empty means the whole
+    # connector surface returns 401.
+    MCP_TOKEN: str = ""
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 

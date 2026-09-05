@@ -4,7 +4,8 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
-from app.routers import chat, auth, health, dashboard, uploads, exports, social_approval, showings
+from app.routers import (chat, auth, health, dashboard, uploads, exports,
+                         social_approval, showings, mcp)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -26,6 +27,11 @@ app.include_router(uploads.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")
 app.include_router(social_approval.router, prefix="/api")
 app.include_router(showings.router, prefix="/api")
+
+# No /api prefix: a connector URL is typed by hand into a vendor's form, and
+# /mcp is the path both Anthropic's and OpenAI's documentation use as the
+# example. Matching it removes one thing that can be got wrong.
+app.include_router(mcp.router)
 
 
 @app.get("/showings")
