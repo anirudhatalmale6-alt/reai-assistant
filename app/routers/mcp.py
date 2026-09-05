@@ -42,6 +42,7 @@ safe reading of a missing secret - an empty token must never mean "no check".
 """
 
 import json
+import re
 import secrets
 import uuid
 
@@ -167,6 +168,15 @@ _CHATGPT_TOOLS = [
 ]
 
 
+# An Ontario MLS number is a letter or two and then digits (X1234567), and some
+# boards use digits alone. A name never matches, which is the point.
+_MLS_LIKE = re.compile(r"^[A-Za-z]{0,2}\d{5,10}[A-Za-z]?$")
+
+
+def _looks_like_mls(query: str) -> bool:
+    return bool(_MLS_LIKE.match(query.strip()))
+
+
 def _search(query: str) -> dict:
     """One query, both record types.
 
@@ -194,21 +204,32 @@ def _search(query: str) -> dict:
     except Exception as e:
         notes.append(f"CRM search unavailable: {e}")
 
-    try:
-        listing = json.loads(execute_tool("look_up_listing", {"mls_number": query}))
-        if isinstance(listing, dict) and not listing.get("error"):
-            mls = listing.get("mls_number") or query
-            results.append({
-                "id": f"listing:{mls}",
-                "title": f"{listing.get('address', query)} - listing",
-                "text": ", ".join(
-                    str(listing[k]) for k in ("price", "beds", "baths", "status") if listing.get(k)
-                ),
-            })
-    except Exception:
-        # A query that is a person's name is not a valid MLS number, and that is
-        # the common case rather than an error worth reporting to the agent.
-        pass
+    # Only ask the board feed about something shaped like an MLS number. The
+    # first version passed every query through, so searching a person's name
+    # invented a property: look_up_listing answers a miss with
+    # {"found": 0, "note": ...} rather than an error key, and the guard here
+    # tested for "error", so a lookup that had found nothing was read as a hit
+    # and "Kristina" came back as a listing with a blank price. Agostino's
+    # standing rule is never to state a property fact that isn't in the data,
+    # and a search result is a property fact. Results are now built only from
+    # entries inside `listings`, so a miss has nothing to build from.
+    if _looks_like_mls(query):
+        try:
+            payload = json.loads(execute_tool("look_up_listing", {"mls_numbers": [query.strip()]}))
+            for listing in payload.get("listings") or []:
+                mls = listing.get("mls_number") or query.strip()
+                where = ", ".join(p for p in (listing.get("address"), listing.get("city")) if p)
+                results.append({
+                    "id": f"listing:{mls}",
+                    "title": f"{where or mls} - listing",
+                    "text": ", ".join(
+                        str(listing[k])
+                        for k in ("price", "beds", "baths", "property_type", "status")
+                        if listing.get(k)
+                    ),
+                })
+        except Exception as e:
+            notes.append(f"Listing lookup unavailable: {e}")
 
     return {"results": results, "notes": notes} if notes else {"results": results}
 
@@ -218,7 +239,17 @@ def _fetch(record_id: str) -> dict:
     if kind == "lead":
         return json.loads(execute_tool("get_crm_lead_details", {"lead_id": ident}))
     if kind == "listing":
-        return json.loads(execute_tool("get_listing_details", {"mls_number": ident}))
+        # The board feed behind look_up_listing, not get_listing_details. The
+        # latter goes to realtor.ca, which answers this server with a 403 and
+        # falls back to returning a search URL - a link, not a property. Search
+        # results came from the feed, so expanding one has to come from there
+        # too, or the detail view would contradict the result that produced it.
+        payload = json.loads(execute_tool("look_up_listing", {"mls_numbers": [ident]}))
+        listings = payload.get("listings") or []
+        return listings[0] if listings else {
+            "error": f"No listing found for MLS {ident}.",
+            "note": payload.get("note", ""),
+        }
     return {"error": f"Unrecognised id '{record_id}'. Expected lead:<id> or listing:<mls>."}
 
 
