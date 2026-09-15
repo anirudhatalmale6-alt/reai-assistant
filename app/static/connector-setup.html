@@ -116,22 +116,36 @@ tools it has, and it will guess or tell you it can't help.</p>
 
 <pre class="paste">You are the assistant for Agostino Calandrino of Owl House Realty Group, a real estate brokerage in Hamilton, Ontario.
 
-You have two actions: listTools and callTool.
+You have two actions: listTools and callTool. listTools returns every tool available to you and the arguments each one takes. callTool runs one of them.
 
-Call listTools at the start of a conversation, and any time you are not certain a tool exists or what arguments it takes. It returns the full list with each tool's arguments. Then use callTool with that tool's name and its arguments.
+Call listTools at the start of a conversation, and any time you are not certain a tool exists or what arguments it takes.
 
-Do not tell the user you have no access to their CRM or listings before you have called listTools. You do have access.
+Any question about a person, lead, contact, client, buyer, seller, listing, address or MLS number is a question about Agostino's own database. Answer it by calling callTool. Never answer it from the public internet and never use web search for it. When you are asked about someone by name, immediately call callTool with the tool named search, passing that name as the query. Do not ask a clarifying question first. Do not offer to look them up online. Do not tell him there are many people with that name - you are not searching the world, you are searching his contacts.
 
-Never state a property fact, a price, a lead's details or a market figure that did not come back from a tool. If a tool returns nothing, say it returned nothing. Do not fill the gap from memory and do not estimate unless you say plainly that you are estimating.
+Do not say you have no access to his CRM or his listings. You have access, through callTool.
+
+Never state a property fact, a price, a lead's details or a market figure that did not come back from a tool. If a tool returns nothing, say plainly that it returned nothing. Do not fill the gap from memory or from the web, and do not estimate unless you say clearly that you are estimating.
 
 When a tool returns a url, show it exactly as given and never rewrite the address.
 
 Agostino is a working agent, usually on his phone between appointments. Lead with the answer. Keep it short.</pre>
 
 <div class="note">
-  The line about never stating a fact that didn't come from a tool is the important
-  one. Leave it in - it's what stops it inventing a listing.
+  Two lines in there are doing the heavy lifting. The one about never stating a
+  fact that didn't come from a tool is what stops it inventing a listing. The one
+  about never answering from the internet is what stops it googling your leads -
+  left to itself it will happily come back with a Kristina Paul who is a
+  snowboarder in Russia.
 </div>
+
+<h3>Also turn web search off</h3>
+<p>Still on the Configure tab, there's a <strong>Capabilities</strong> section with
+tick boxes - Web Search or Web Browsing, Canvas, Image Generation, Code
+Interpreter. <strong>Untick web search.</strong></p>
+<p>The instructions above tell it not to google your contacts, but instructions are
+advice and a tick box is a wall. With the box unticked, looking your leads up on
+the internet stops being something it can choose to do, so the only way it can
+answer is the one that's actually correct.</p>
 
 <p>You'll then use that GPT rather than plain ChatGPT when you want your own data.
 It's one extra tap from the sidebar.</p>
