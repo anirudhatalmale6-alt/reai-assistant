@@ -168,6 +168,39 @@ _CHATGPT_TOOLS = [
 ]
 
 
+def _normalise_arguments(body: dict) -> dict:
+    """Find the tool's arguments however the model decided to send them.
+
+    The Action schema types `arguments` as a free-form object, and a free-form
+    object is the one shape a model fills in inconsistently - there are no named
+    properties to guide it. Three spellings show up in practice:
+
+        {"name": "search", "arguments": {"query": "x"}}   what the schema asks for
+        {"name": "search", "arguments": "{\\"query\\": \\"x\\"}"}  the object as a string
+        {"name": "search", "query": "x"}                  arguments flattened away
+
+    All three clearly mean the same thing, so accept all three. The alternative
+    is a tool call that arrives, returns 200, finds nothing, and is reported to
+    the agent as "no matching contact" - a wrong answer about his own CRM that
+    looks exactly like a right one.
+    """
+    arguments = body.get("arguments")
+
+    if isinstance(arguments, str):
+        try:
+            arguments = json.loads(arguments)
+        except ValueError:
+            # A bare string almost always means the one argument the tool takes.
+            return {"query": arguments}
+
+    if isinstance(arguments, dict) and arguments:
+        return arguments
+
+    # Nothing usable under `arguments` - take the top level minus the envelope.
+    flattened = {k: v for k, v in body.items() if k not in ("name", "arguments")}
+    return flattened or {}
+
+
 # An Ontario MLS number is a letter or two and then digits (X1234567), and some
 # boards use digits alone. A name never matches, which is the point.
 _MLS_LIKE = re.compile(r"^[A-Za-z]{0,2}\d{5,10}[A-Za-z]?$")
@@ -253,6 +286,39 @@ def _fetch(record_id: str) -> dict:
     return {"error": f"Unrecognised id '{record_id}'. Expected lead:<id> or listing:<mls>."}
 
 
+def _log_call(door: str, name: str, arguments: dict, result: str = "", note: str = "") -> None:
+    """One line per tool call, into the journal.
+
+    Caddy logs the URL and the status, which is enough to answer "did ChatGPT
+    reach us" and nothing more. It was not enough the first time it mattered:
+    the GPT reported no match on a lead that is definitely in the CRM, both
+    calls returned 200, and there was no way to see which tool it had chosen or
+    what it passed. Guessing at that from the outside is how you end up fixing
+    something that was never broken.
+
+    Arguments are logged; they are short and they are the thing in question.
+    Results are counted, not printed - a lead record is the agent's client data
+    and it does not belong in a log to satisfy my curiosity.
+    """
+    size = len(result)
+    count = ""
+    try:
+        parsed = json.loads(result) if result else None
+        if isinstance(parsed, list):
+            count = f" items={len(parsed)}"
+        elif isinstance(parsed, dict):
+            for key in ("results", "listings", "leads", "stops"):
+                if isinstance(parsed.get(key), list):
+                    count = f" {key}={len(parsed[key])}"
+                    break
+            if "error" in parsed:
+                count += " ERROR"
+    except (ValueError, TypeError):
+        pass
+    print(f"[tool] door={door} name={name!r} args={arguments!r} "
+          f"bytes={size}{count}{note}", flush=True)
+
+
 def _call(name: str, arguments: dict) -> str:
     """Run one tool and return its JSON string. The only execution path."""
     if name == "plan_showing_route":
@@ -336,7 +402,9 @@ def _handle(message: dict) -> dict | None:
         arguments = params.get("arguments") or {}
         try:
             payload = _call(name, arguments)
+            _log_call("mcp", name, arguments, payload)
         except Exception as e:
+            _log_call("mcp", name, arguments, note=f" EXC={e}")
             # A tool that blows up is a tool result the model should see and work
             # around, not a transport error. A JSON-RPC error here would end the
             # turn; isError lets the assistant explain itself and try something else.
@@ -436,11 +504,17 @@ async def gpt_call(request: Request):
 
     name = body.get("name")
     if not name:
+        _log_call("gpt", "(missing)", body, note=" MISSING_NAME")
         return JSONResponse({"error": "Missing 'name'."}, status_code=400)
+
+    arguments = _normalise_arguments(body)
     try:
-        return json.loads(_call(name, body.get("arguments") or {}))
+        payload = _call(name, arguments)
     except Exception as e:
+        _log_call("gpt", name, arguments, note=f" EXC={e}")
         return JSONResponse({"error": str(e)}, status_code=200)
+    _log_call("gpt", name, arguments, payload)
+    return json.loads(payload)
 
 
 @router.get("/gpt/openapi.json")
