@@ -41,6 +41,7 @@ With MCP_TOKEN unset the whole surface returns 401. Closed by default is the onl
 safe reading of a missing secret - an empty token must never mean "no check".
 """
 
+import difflib
 import json
 import re
 import secrets
@@ -168,6 +169,54 @@ _CHATGPT_TOOLS = [
 ]
 
 
+def _arguments_schema() -> dict:
+    """Name every argument the exposed tools accept, built from the tools.
+
+    The first version typed `arguments` as a bare object with
+    additionalProperties and nothing else. That reads fine to a human and is
+    unusable to a model: there are no named fields, so there is nowhere obvious
+    to put "Kristina Paul". His GPT duly sent `arguments: {}` twice in a row,
+    got an empty result, and told him the CRM had no usable match - a confident
+    wrong answer about his own contacts, produced by a schema that never asked
+    for the name.
+
+    Generated from the registry rather than written out, so a tool added later
+    cannot silently go missing from here. additionalProperties stays true: the
+    named list is guidance, not a whitelist.
+    """
+    props: dict[str, dict] = {}
+    used_by: dict[str, list[str]] = {}
+
+    for tool in _mcp_tools():
+        for key, spec in ((tool.get("inputSchema") or {}).get("properties") or {}).items():
+            used_by.setdefault(key, []).append(tool["name"])
+            declared = spec.get("type", "string")
+            if key not in props:
+                props[key] = {"type": declared}
+                if spec.get("items"):
+                    props[key]["items"] = spec["items"]
+            elif props[key]["type"] != declared:
+                # Two tools disagree on the type of a shared name. A string is
+                # the one shape everything survives being sent as.
+                props[key] = {"type": "string"}
+
+    for key, spec in props.items():
+        tools = used_by[key]
+        listed = ", ".join(tools[:4]) + (", ..." if len(tools) > 4 else "")
+        spec["description"] = f"For: {listed}"
+
+    return {
+        "type": "object",
+        "additionalProperties": True,
+        "description": (
+            "The arguments for the tool named above. Fill in the fields that tool "
+            "needs - call listTools if unsure which. For a person or property "
+            "lookup this is normally `query`."
+        ),
+        "properties": props,
+    }
+
+
 def _normalise_arguments(body: dict) -> dict:
     """Find the tool's arguments however the model decided to send them.
 
@@ -210,6 +259,46 @@ def _looks_like_mls(query: str) -> bool:
     return bool(_MLS_LIKE.match(query.strip()))
 
 
+def _near_matches(query: str, limit: int = 5) -> list[dict]:
+    """Close-but-not-exact names from the cached contact index.
+
+    Lofty's search wants the name spelled the way it was typed in. Agostino
+    asked for "Khristina Paul"; the contact is "Kristina Paul", so the exact
+    search returned nothing and he was told there was no usable match - for
+    someone sitting in his own database. Agents mistype client names constantly
+    and a one-letter miss should not look like an absence.
+
+    Reads only a cache that already exists and never rebuilds one inline:
+    refreshing means pulling all 8,000-odd contacts from Lofty, which is fine
+    as a background job and much too slow to do inside a lookup someone is
+    waiting on.
+
+    These come back labelled as near matches, never folded in with the exact
+    ones. A guess presented as a result is how the wrong client gets called.
+    """
+    try:
+        from app.services import segments
+        if not segments.CACHE_FILE.exists():
+            return []
+        # A huge max_age means "use whatever is cached, however old" - the
+        # alternative is a rebuild the caller is blocked on.
+        index = segments.load_index(max_age=10 ** 9)
+    except Exception:
+        return []
+
+    by_name: dict[str, dict] = {}
+    for contact in index.get("contacts") or []:
+        full = f"{contact.get('first', '')} {contact.get('last', '')}".strip()
+        if full:
+            by_name.setdefault(full.lower(), contact)
+
+    if not by_name:
+        return []
+
+    hits = difflib.get_close_matches(query.strip().lower(), list(by_name), n=limit, cutoff=0.72)
+    return [by_name[h] for h in hits]
+
+
 def _search(query: str) -> dict:
     """One query, both record types.
 
@@ -236,6 +325,24 @@ def _search(query: str) -> dict:
             })
     except Exception as e:
         notes.append(f"CRM search unavailable: {e}")
+
+    # Exact search found nobody. Before reporting an absence - which the agent
+    # will act on - check whether the name was simply mistyped.
+    if not results and query.strip() and not _looks_like_mls(query):
+        for contact in _near_matches(query):
+            full = f"{contact.get('first', '')} {contact.get('last', '')}".strip()
+            results.append({
+                "id": f"lead:{contact.get('id')}",
+                "title": f"{full} - CRM contact (near match, you typed '{query.strip()}')",
+                "text": ", ".join(
+                    str(contact[k]) for k in ("stage", "email", "phone", "source") if contact.get(k)
+                ),
+            })
+        if results:
+            notes.append(
+                f"No contact is spelled '{query.strip()}'. The above are close matches on "
+                f"name - confirm which one is meant before acting on it."
+            )
 
     # Only ask the board feed about something shaped like an MLS number. The
     # first version passed every query through, so searching a person's name
@@ -552,10 +659,9 @@ async def gpt_openapi(request: Request):
                             "type": "object",
                             "properties": {
                                 "name": {"type": "string", "description": "Tool name from listTools."},
-                                "arguments": {"type": "object", "description": "Arguments for that tool.",
-                                              "additionalProperties": True},
+                                "arguments": _arguments_schema(),
                             },
-                            "required": ["name"],
+                            "required": ["name", "arguments"],
                         }}},
                     },
                     "responses": {"200": {"description": "The tool's result.",
