@@ -203,7 +203,11 @@ def get_lead_activities(lead_id: str, limit: int = 10) -> list[dict]:
         data.get("data") or data.get("activities") or []
     )
 
-    return [_slim_activity(a) if isinstance(a, dict) else {"value": a} for a in activities]
+    # Lofty ignores the limit it is sent - asking for 5 returns all 39 - so it
+    # has to be enforced here. A lead who has been browsing for months otherwise
+    # returns hundreds of entries, which crowds out the rest of the answer.
+    return [_slim_activity(a) if isinstance(a, dict) else {"value": a}
+            for a in activities[:max(1, limit)]]
 
 
 def _slim_activity(entry: dict) -> dict:
