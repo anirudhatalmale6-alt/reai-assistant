@@ -32,6 +32,9 @@
   td { padding:7px 10px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
   td:first-child { font-weight:600; white-space:nowrap; padding-right:16px; }
   footer { margin-top:40px; padding-top:18px; border-top:1px solid var(--line); font-size:14px; color:#6b7683; }
+  pre.paste { background:#fff; border:1px solid var(--line); border-left:3px solid var(--gold);
+              border-radius:6px; padding:14px 16px; font-size:13.5px; line-height:1.55;
+              white-space:pre-wrap; word-break:break-word; overflow-x:auto; }
 </style>
 </head>
 <body>
@@ -105,6 +108,30 @@ authentication set to none:</p>
   <li>Save, then click <strong>Create</strong> or <strong>Update</strong> at the
       top right.</li>
 </ol>
+
+<h3>Paste this into the Instructions box</h3>
+<p>Still on the Configure tab, there's a large <strong>Instructions</strong> box near
+the top. Paste this in exactly. Without it the GPT doesn't know to look up what
+tools it has, and it will guess or tell you it can't help.</p>
+
+<pre class="paste">You are the assistant for Agostino Calandrino of Owl House Realty Group, a real estate brokerage in Hamilton, Ontario.
+
+You have two actions: listTools and callTool.
+
+Call listTools at the start of a conversation, and any time you are not certain a tool exists or what arguments it takes. It returns the full list with each tool's arguments. Then use callTool with that tool's name and its arguments.
+
+Do not tell the user you have no access to their CRM or listings before you have called listTools. You do have access.
+
+Never state a property fact, a price, a lead's details or a market figure that did not come back from a tool. If a tool returns nothing, say it returned nothing. Do not fill the gap from memory and do not estimate unless you say plainly that you are estimating.
+
+When a tool returns a url, show it exactly as given and never rewrite the address.
+
+Agostino is a working agent, usually on his phone between appointments. Lead with the answer. Keep it short.</pre>
+
+<div class="note">
+  The line about never stating a fact that didn't come from a tool is the important
+  one. Leave it in - it's what stops it inventing a listing.
+</div>
 
 <p>You'll then use that GPT rather than plain ChatGPT when you want your own data.
 It's one extra tap from the sidebar.</p>
