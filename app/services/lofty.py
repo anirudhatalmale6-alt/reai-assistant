@@ -1,6 +1,10 @@
 """Lofty CRM (formerly Chime) API integration service."""
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import requests
+
 from app.config import settings
 
 BASE_URL = "https://api.lofty.com/v1.0"
@@ -199,20 +203,56 @@ def get_lead_activities(lead_id: str, limit: int = 10) -> list[dict]:
         data.get("data") or data.get("activities") or []
     )
 
-    known = ("type", "description", "content", "created_at", "agent_name")
-    out = []
-    for entry in activities:
-        if not isinstance(entry, dict):
-            out.append({"value": entry})
-        elif any(k in entry for k in known):
-            out.append({
-                "type": entry.get("type", ""),
-                "description": entry.get("description") or entry.get("content", ""),
-                "created_at": entry.get("created_at", ""),
-                "agent": entry.get("agent_name", ""),
-            })
-        else:
-            out.append(entry)
+    return [_slim_activity(a) if isinstance(a, dict) else {"value": a} for a in activities]
+
+
+def _slim_activity(entry: dict) -> dict:
+    """One activity, cut down to what an agent would actually act on.
+
+    The raw entry carries a whole nested listing record, a CDN image URL and a
+    search URL long enough to fill a screen. What matters to Agostino is what
+    the lead looked at and when, so that is what comes back.
+
+    `created` is epoch milliseconds, not seconds - dividing wrongly here would
+    date every browse to 1970 and make a hot lead look stone cold.
+
+    Lofty writes -1 into price, square feet and lot size to mean "not set". Left
+    alone that reaches him as a listing priced at minus one dollar, so the
+    sentinel is dropped rather than reported. An absent field is honest; -1 is
+    a number, and numbers get believed.
+    """
+    listing = entry.get("listing") or {}
+
+    when = ""
+    created = entry.get("created")
+    if isinstance(created, (int, float)) and created > 0:
+        try:
+            when = datetime.fromtimestamp(created / 1000, ZoneInfo("America/Toronto")) \
+                .strftime("%Y-%m-%d %I:%M %p")
+        except (ValueError, OSError, OverflowError):
+            when = ""
+
+    out = {
+        "type": entry.get("type", ""),
+        "when": when,
+        # A Browse says which property; a Search says what they asked for.
+        "what": (listing.get("streetAddress") or entry.get("text")
+                 or entry.get("pageName") or "").strip(),
+    }
+
+    details = {
+        "property_type": listing.get("propertyType") or "",
+        "beds": listing.get("bedrooms"),
+        "baths": listing.get("bathrooms"),
+        "price": listing.get("price"),
+    }
+    for key, value in details.items():
+        if value in (None, "", -1, -1.0):
+            continue
+        out[key] = value
+
+    if entry.get("link"):
+        out["link"] = entry["link"]
     return out
 
 
