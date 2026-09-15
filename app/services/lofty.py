@@ -251,7 +251,10 @@ def _slim_activity(entry: dict) -> dict:
             continue
         out[key] = value
 
-    if entry.get("link"):
+    # A browse link opens the property and is worth keeping. A search link is
+    # 1,300 characters of the same criteria already spelled out in `what`, and
+    # nobody has ever clicked one - it is pure weight in the answer.
+    if entry.get("link") and entry.get("type") != "Search":
         out["link"] = entry["link"]
     return out
 
