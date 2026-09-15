@@ -169,28 +169,51 @@ def search_leads(query: str, limit: int = 10) -> list[dict]:
 
 
 def get_lead_activities(lead_id: str, limit: int = 10) -> list[dict]:
-    """Get recent activities for a lead."""
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/leads/{lead_id}/activities",
-            headers=_headers(),
-            params={"limit": limit},
-            timeout=15,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        activities = data.get("data", data.get("activities", []))
-        return [
-            {
-                "type": a.get("type", ""),
-                "description": a.get("description", a.get("content", "")),
-                "created_at": a.get("created_at", ""),
-                "agent": a.get("agent_name", ""),
-            }
-            for a in activities
-        ]
-    except requests.exceptions.HTTPError:
-        return []
+    """Get recent activities for a lead.
+
+    This endpoint answers with a bare JSON list, not an envelope. The previous
+    version called .get() on it, so every single call raised "'list' object has
+    no attribute 'get'" - it had never worked. It went unnoticed because the web
+    chat rarely reached for it; the moment the agent had a tool list in front of
+    him he asked for a lead's history twice in two minutes and hit it both times.
+
+    Every lead sampled so far returns an empty list, so the shape of a populated
+    entry is still unknown. That is why the mapping below falls back to handing
+    the entry over untouched instead of forcing it into four fields I would be
+    guessing at - four empty strings look like a lead with no history, which is
+    a different claim from "I don't recognise this format".
+    """
+    resp = requests.get(
+        f"{BASE_URL}/leads/{lead_id}/activities",
+        headers=_headers(),
+        params={"limit": limit},
+        timeout=15,
+    )
+    # Deliberately not swallowed. Returning [] on a 403 or a 500 would render a
+    # permissions problem as "this lead has done nothing", and he would act on
+    # that silence.
+    resp.raise_for_status()
+
+    data = resp.json()
+    activities = data if isinstance(data, list) else (
+        data.get("data") or data.get("activities") or []
+    )
+
+    known = ("type", "description", "content", "created_at", "agent_name")
+    out = []
+    for entry in activities:
+        if not isinstance(entry, dict):
+            out.append({"value": entry})
+        elif any(k in entry for k in known):
+            out.append({
+                "type": entry.get("type", ""),
+                "description": entry.get("description") or entry.get("content", ""),
+                "created_at": entry.get("created_at", ""),
+                "agent": entry.get("agent_name", ""),
+            })
+        else:
+            out.append(entry)
+    return out
 
 
 def update_lead(lead_id: str, updates: dict) -> dict:
