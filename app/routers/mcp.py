@@ -135,6 +135,7 @@ def _mcp_tools() -> list[dict]:
             "inputSchema": tool.get("input_schema", {"type": "object", "properties": {}}),
         })
     out.append(ROUTE_TOOL)
+    out.append(PROFILE_TOOL)
     out.extend(_CHATGPT_TOOLS)
     return out
 
@@ -167,6 +168,80 @@ _CHATGPT_TOOLS = [
         },
     },
 ]
+
+
+PROFILE_TOOL = {
+    "name": "lead_profile",
+    "description": (
+        "Everything about one contact in a single call: their details, and what they "
+        "have been browsing and searching on the website. Use this for any question "
+        "about a person - 'show me everything on X', 'what has X been looking at', "
+        "'tell me about X'. Prefer this over calling search, get_crm_lead_details and "
+        "get_lead_activities separately."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "The person's name, email or phone number."},
+            "activity_limit": {"type": "integer",
+                               "description": "How many recent website actions to include. Default 15."},
+        },
+        "required": ["query"],
+    },
+}
+
+
+def _lead_profile(query: str, activity_limit: int = 15) -> dict:
+    """Search, open the record and pull the browsing history, in one call.
+
+    Not a convenience wrapper - a fix for something in ChatGPT's interface. Every
+    action call raises a permission box, and Agostino's build offers only Allow
+    or Deny, with no way to remember the answer. Asking "show me everything on
+    X" used to mean search, then details, then activities: three boxes for one
+    question. Doing the three server-side makes it one.
+
+    On an ambiguous name this deliberately stops and returns the candidates
+    rather than opening the most likely one. He has a Kristina Paul and a
+    Christina Paul; picking for him is how the wrong client gets phoned, and
+    saving him a tap is not worth that.
+    """
+    found = _search(query)
+    matches = found.get("results", [])
+    leads = [m for m in matches if str(m.get("id", "")).startswith("lead:")]
+
+    if not leads:
+        return {"found": 0,
+                "note": f"No contact matches '{query}'.",
+                "other_matches": [m for m in matches if m not in leads] or None}
+
+    if len(leads) > 1:
+        return {
+            "found": len(leads),
+            "ambiguous": True,
+            "note": ("More than one contact matches. Ask which one is meant before "
+                     "acting - do not assume the first."),
+            "candidates": leads,
+        }
+
+    lead_id = leads[0]["id"].split(":", 1)[1]
+    profile: dict = {"found": 1}
+
+    try:
+        profile["contact"] = json.loads(execute_tool("get_crm_lead_details", {"lead_id": lead_id}))
+    except Exception as e:
+        profile["contact"] = {"error": str(e)}
+
+    try:
+        profile["activity"] = json.loads(execute_tool(
+            "get_lead_activities", {"lead_id": lead_id, "limit": activity_limit}))
+    except Exception as e:
+        # The record is still worth returning without the history attached.
+        profile["activity"] = []
+        profile["activity_error"] = str(e)
+
+    if found.get("notes"):
+        profile["notes"] = found["notes"]
+    return profile
 
 
 def _arguments_schema() -> dict:
@@ -438,6 +513,10 @@ def _call(name: str, arguments: dict) -> str:
             traffic=arguments.get("traffic", "auto"),
         )
         return json.dumps(plan, default=str, ensure_ascii=False)
+    if name == "lead_profile":
+        return json.dumps(_lead_profile(arguments.get("query", ""),
+                                        arguments.get("activity_limit", 15)),
+                          default=str, ensure_ascii=False)
     if name == "search":
         return json.dumps(_search(arguments.get("query", "")), default=str, ensure_ascii=False)
     if name == "fetch":
